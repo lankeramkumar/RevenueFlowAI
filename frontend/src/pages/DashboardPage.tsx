@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "react-oidc-context";
+import { useMe } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
 
 interface AgingSummaryResponse {
@@ -17,9 +17,10 @@ const BUCKET_ORDER = ["not_due", "1-30", "31-60", "61-90", "91+"];
  * whatever currency/bucket totals come back — no mock data, no client-side
  * math on amounts (money stays a decimal string end to end).
  */
-export function DashboardPage({ businessUnitId }: { businessUnitId: string }) {
+export function DashboardPage() {
   const apiFetch = useApi();
-  const auth = useAuth();
+  const me = useMe();
+  const businessUnitId = me.business_units[0].id;
 
   const query = useQuery({
     queryKey: ["aging-summary", businessUnitId],
@@ -27,7 +28,6 @@ export function DashboardPage({ businessUnitId }: { businessUnitId: string }) {
       apiFetch<AgingSummaryResponse>(
         `/api/v1/dashboard/aging-summary?business_unit_id=${businessUnitId}`,
       ),
-    enabled: auth.isAuthenticated,
   });
 
   if (query.isLoading) return <p>Loading aging summary…</p>;

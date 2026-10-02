@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMe } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
 import { ApiError } from "../api/client";
 
@@ -17,9 +18,11 @@ interface ImportJobResponse {
  * worker finishes. Real upload + real polling against the real backend —
  * no mocked progress bar.
  */
-export function ImportPage({ businessUnitId }: { businessUnitId: string }) {
+export function ImportPage() {
   const apiFetch = useApi();
   const queryClient = useQueryClient();
+  const me = useMe();
+  const businessUnitId = me.business_units[0].id;
   const [files, setFiles] = useState<FileList | null>(null);
   const [snapshotDate, setSnapshotDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [jobId, setJobId] = useState<string | null>(null);

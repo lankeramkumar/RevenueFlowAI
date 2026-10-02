@@ -162,9 +162,18 @@ returned real `Decimal`s) but mypy couldn't catch type errors in code that
 consumed them, which is exactly how this class of column was supposed to
 be protected. Fixed across all 12 affected columns.
 
-### 4. Operational interface — not started (first screen landed early, see above)
-Dashboard, exception workbench, customer timeline, evidence drawers,
-action/task queue, admin screens.
+### 4. Operational interface — in progress
+
+| Item | Status |
+|---|---|
+| Real client-side routing (React Router), shared nav, `/me`-driven layout | ✅ **verified live**: `/`, `/workbench`, `/imports` all navigate correctly in the running browser session |
+| Dashboard (aging) | ✅ done (Milestone 3) |
+| Exception workbench (unbilled shipments + active holds tables) | ✅ **verified live**: real empty-state rendering confirmed against the current dataset (which has no shipment/hold data — only S01/S09); API wiring identical to the proven dashboard pattern |
+| Import screen | ✅ done (previous commit) |
+| Exception workbench: filters, sort, pagination, priority explanations, evidence drawers | 🔲 not started — current version is an unfiltered real-data table, not the full spec |
+| Customer detail / timeline | 🔲 not started |
+| Action/task queue (assign, approve/reject, comments, audit) | 🔲 not started |
+| Administration screens (scopes, thresholds, currencies, retention, provider status) | 🔲 not started |
 
 ### 5. Investigation — not started
 Supervisor + Order/AR/Cash Application specialists, typed contracts,
