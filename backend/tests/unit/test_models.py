@@ -11,6 +11,7 @@ def test_all_expected_tables_are_registered():
         "customers", "orders", "order_lines", "shipments", "shipment_lines",
         "invoices", "invoice_lines", "receipts", "receipt_applications",
         "credit_memos", "credit_applications", "disputes", "order_holds",
+        "follow_up_tasks", "task_comments",
     }
     assert expected_tables <= set(Base.metadata.tables.keys())
-    assert len(models.__all__) == 20  # excludes the association table, which has no model class
+    assert len(models.__all__) == 22  # excludes the association table, which has no model class

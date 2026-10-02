@@ -172,7 +172,7 @@ be protected. Fixed across all 12 affected columns.
 | Import screen | ✅ done (previous commit) |
 | Exception workbench: filters, sort, pagination, priority explanations, evidence drawers | 🔲 not started — current version is an unfiltered real-data table, not the full spec |
 | Customer detail / timeline | 🔲 not started |
-| Action/task queue (assign, approve/reject, comments, audit) | 🔲 not started |
+| Action/task queue (create, assign, approve/reject/resolve, comments, audit) | ✅ **verified live end-to-end**: created a real task through the browser UI, approved it (role-gated to admin/approver via `DECISION_ROLES`), and confirmed both `task.created` and `task.transitioned` rows landed in the real `audit_events` table in Postgres — this also closes the "audit event writing" gap the acceptance report flagged. Backed by `models/tasks.py` (new migration `e85aa0753f3f`), `api/tasks.py`, `frontend/src/pages/TaskQueuePage.tsx`. Assignment UI and per-task comment thread UI are not built yet (API supports comments; no screen for them) |
 | Administration screens (scopes, thresholds, currencies, retention, provider status) | 🔲 not started |
 
 ### 5. Investigation — not started

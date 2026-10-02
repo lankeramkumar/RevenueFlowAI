@@ -59,6 +59,7 @@ export function AppLayout() {
           <nav style={{ display: "flex", gap: "1rem" }}>
             <Link to="/">Dashboard</Link>
             <Link to="/workbench">Exceptions</Link>
+            <Link to="/tasks">Tasks</Link>
             {me.role === "admin" && <Link to="/imports">Import</Link>}
           </nav>
           <span style={{ marginLeft: "auto" }}>

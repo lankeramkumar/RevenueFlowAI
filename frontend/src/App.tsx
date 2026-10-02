@@ -6,6 +6,7 @@ import { AppLayout } from "./layout/AppLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExceptionWorkbenchPage } from "./pages/ExceptionWorkbenchPage";
 import { ImportPage } from "./pages/ImportPage";
+import { TaskQueuePage } from "./pages/TaskQueuePage";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="workbench" element={<ExceptionWorkbenchPage />} />
+              <Route path="tasks" element={<TaskQueuePage />} />
               <Route path="imports" element={<ImportPage />} />
             </Route>
           </Routes>

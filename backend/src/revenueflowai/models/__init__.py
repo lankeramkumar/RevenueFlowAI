@@ -21,9 +21,12 @@ from revenueflowai.models.ingestion import (
     ImportJob,
     ImportJobFile,
 )
+from revenueflowai.models.tasks import FollowUpTask, TaskComment
 from revenueflowai.models.tenancy import AppUser, BusinessUnit, Organization
 
 __all__ = [
+    "FollowUpTask",
+    "TaskComment",
     "Organization",
     "BusinessUnit",
     "AppUser",
