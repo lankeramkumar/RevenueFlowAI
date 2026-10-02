@@ -1,19 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
 import { apiFetch } from "../api/client";
+import { useApi } from "../hooks/useApi";
+import { DashboardPage } from "./DashboardPage";
 
-/**
- * Foundation-milestone placeholder: proves the real login → API round trip
- * works (Keycloak-issued token sent to FastAPI's unauthenticated /healthz
- * and, once logged in, a real authenticated call). Replaced by the real
- * dashboard in Milestone 4.
- */
+interface MeResponse {
+  email: string;
+  display_name: string;
+  role: string;
+  organization_id: string;
+  business_units: { id: string; code: string; name: string }[];
+}
+
 export function StatusPage() {
   const auth = useAuth();
+  const apiFetch2 = useApi();
 
   const healthQuery = useQuery({
     queryKey: ["healthz"],
     queryFn: () => apiFetch<{ status: string }>("/healthz", undefined),
+  });
+
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: () => apiFetch2<MeResponse>("/api/v1/me"),
+    enabled: auth.isAuthenticated,
   });
 
   if (auth.isLoading) {
@@ -38,6 +49,15 @@ export function StatusPage() {
         <>
           <p>Signed in as {auth.user?.profile.email ?? auth.user?.profile.preferred_username}</p>
           <button onClick={() => auth.signoutRedirect()}>Sign out</button>
+
+          {meQuery.isLoading && <p>Loading your access…</p>}
+          {meQuery.isError && <p role="alert">Could not load your account/business units.</p>}
+          {meQuery.data && meQuery.data.business_units.length === 0 && (
+            <p>No business unit access yet — ask an admin to grant one.</p>
+          )}
+          {meQuery.data && meQuery.data.business_units.length > 0 && (
+            <DashboardPage businessUnitId={meQuery.data.business_units[0].id} />
+          )}
         </>
       ) : (
         <button onClick={() => auth.signinRedirect()}>Sign in with Keycloak</button>

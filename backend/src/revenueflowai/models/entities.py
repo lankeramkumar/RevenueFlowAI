@@ -8,6 +8,7 @@ the manifest stays the single source of truth for supported vocabulary.
 """
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import Date, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -42,10 +43,10 @@ class OrderLine(ScopedRecordMixin, Base):
 
     order_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     item_code: Mapped[str] = mapped_column(String(128), nullable=False)
-    ordered_quantity: Mapped[object] = mapped_column(Quantity, nullable=False)
-    cancelled_quantity: Mapped[object] = mapped_column(Quantity, nullable=False, default=0)
-    unit_price: Mapped[object] = mapped_column(Money, nullable=False)
-    line_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    ordered_quantity: Mapped[Decimal] = mapped_column(Quantity, nullable=False)
+    cancelled_quantity: Mapped[Decimal] = mapped_column(Quantity, nullable=False, default=0)
+    unit_price: Mapped[Decimal] = mapped_column(Money, nullable=False)
+    line_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
 
 
 class Shipment(ScopedRecordMixin, Base):
@@ -62,7 +63,7 @@ class ShipmentLine(ScopedRecordMixin, Base):
 
     shipment_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     order_line_external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    shipped_quantity: Mapped[object] = mapped_column(Quantity, nullable=False)
+    shipped_quantity: Mapped[Decimal] = mapped_column(Quantity, nullable=False)
 
 
 class Invoice(ScopedRecordMixin, Base):
@@ -73,7 +74,7 @@ class Invoice(ScopedRecordMixin, Base):
     invoice_date: Mapped[date] = mapped_column(Date, nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    invoice_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    invoice_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
@@ -83,8 +84,8 @@ class InvoiceLine(ScopedRecordMixin, Base):
     invoice_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     order_line_external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     shipment_line_external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    billed_quantity: Mapped[object | None] = mapped_column(Quantity, nullable=True)
-    line_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    billed_quantity: Mapped[Decimal | None] = mapped_column(Quantity, nullable=True)
+    line_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
 
 
 class Receipt(ScopedRecordMixin, Base):
@@ -93,7 +94,7 @@ class Receipt(ScopedRecordMixin, Base):
     customer_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     receipt_date: Mapped[date] = mapped_column(Date, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    receipt_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    receipt_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     remittance_reference: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
@@ -103,7 +104,7 @@ class ReceiptApplication(ScopedRecordMixin, Base):
 
     receipt_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     invoice_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    applied_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    applied_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     application_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
 
@@ -114,7 +115,7 @@ class CreditMemo(ScopedRecordMixin, Base):
     customer_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     invoice_external_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
-    credit_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    credit_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
 
 
@@ -123,7 +124,7 @@ class CreditApplication(ScopedRecordMixin, Base):
 
     credit_memo_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     invoice_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    applied_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    applied_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     application_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
 
@@ -132,7 +133,7 @@ class Dispute(ScopedRecordMixin, Base):
     __tablename__ = "disputes"
 
     invoice_external_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    disputed_amount: Mapped[object] = mapped_column(Money, nullable=False)
+    disputed_amount: Mapped[Decimal] = mapped_column(Money, nullable=False)
     reason: Mapped[str] = mapped_column(String(256), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     opened_date: Mapped[date] = mapped_column(Date, nullable=False)

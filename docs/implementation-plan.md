@@ -132,16 +132,27 @@ unrelated native service — see `infra/docker-compose.yml` and
 | Receipt match proposals (exact/ambiguous/bounded multi-invoice) | ✅ done (`domain/matching.py`) |
 | Order hold presentation (no asserted cause) | ✅ done (`domain/holds.py`) |
 | Scenario coverage against hand-transcribed S01–S17 expected values | ✅ S01–S14, S16 covered (16/17); S15 (cross-org isolation) and S17 (prompt-injection) are integration/agent-layer concerns deferred to Milestones 2's authz tests and Milestone 5 respectively — tracked, not silently dropped |
-| SQL-backed services wrapping these pure functions with real dataset-version queries | 🔲 not started — needs Postgres, ⏳ pending Docker |
+| SQL-backed aging summary service (currency-separated, bucketed) | ✅ **verified end-to-end**: real query over `Invoice`/`ReceiptApplication`/`CreditApplication` for the active dataset version, wrapping the pure `domain/balances.py` functions (`domain/services.py::compute_aging_summary`) |
+| `GET /api/v1/dashboard/aging-summary` API | ✅ **verified live**: called through a real browser session, returns per-currency-bucket decimal strings |
+| `GET /api/v1/me` (role + accessible business units) | ✅ **verified live**: frontend uses this to discover which business unit to query rather than hardcoding one |
+| Real dashboard screen rendering the above | ✅ **verified live in a browser**, screenshot-confirmed: EUR 200.00 in bucket 1-30, USD 100.00 in bucket 1-30, USD 600.00 in bucket 31-60 — exactly matching the S01/S09 hand-calculation, computed from real uploaded CSV data, not mocked |
 | Exception-prioritization rules | 🔲 not started |
-| REST APIs exposing these calculations | 🔲 not started |
+| Remaining domain services (unbilled-shipment, receipt-match, holds) wired to SQL | 🔲 not started — pure functions exist (`domain/shipments.py`, `matching.py`, `holds.py`), only `balances.py` has a SQL-backed wrapper so far |
 
 **Tests added this pass:** `tests/unit/test_domain_balances.py`,
 `test_domain_shipments.py`, `test_domain_matching.py`, `test_domain_holds.py`
-— 20 tests, all passing, pure Python (no DB). Combined with Milestones 1–2,
-32/32 backend tests pass; `ruff`/`mypy` clean.
+(20 pure-function tests) plus `tests/integration/test_dashboard_aging_summary.py`
+(2 tests against live Postgres, reusing the real generator + activation
+pipeline). 45/45 backend tests pass; `ruff`/`mypy` clean.
 
-### 4. Operational interface — not started
+**Typing bug found and fixed:** the money/quantity columns in
+`models/entities.py` were declared `Mapped[object]` instead of
+`Mapped[Decimal]` — harmless at runtime (SQLAlchemy's `Numeric` still
+returned real `Decimal`s) but mypy couldn't catch type errors in code that
+consumed them, which is exactly how this class of column was supposed to
+be protected. Fixed across all 12 affected columns.
+
+### 4. Operational interface — not started (first screen landed early, see above)
 Dashboard, exception workbench, customer timeline, evidence drawers,
 action/task queue, admin screens.
 

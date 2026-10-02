@@ -7,8 +7,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from revenueflowai.api.dashboard import router as dashboard_router
 from revenueflowai.api.health import router as health_router
 from revenueflowai.api.imports import router as imports_router
+from revenueflowai.api.me import router as me_router
 from revenueflowai.config import get_settings
 from revenueflowai.storage.s3_store import S3CompatibleObjectStore
 
@@ -44,3 +46,5 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(imports_router)
+app.include_router(dashboard_router)
+app.include_router(me_router)
