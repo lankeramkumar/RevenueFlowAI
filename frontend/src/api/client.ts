@@ -16,11 +16,15 @@ export async function apiFetch<T>(
   accessToken: string | undefined,
   init: RequestInit = {},
 ): Promise<T> {
+  // FormData sets its own multipart Content-Type (with the boundary) --
+  // forcing application/json here would break file uploads.
+  const isFormData = init.body instanceof FormData;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...(init.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
   });

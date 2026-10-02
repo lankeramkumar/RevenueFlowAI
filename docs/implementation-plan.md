@@ -86,8 +86,10 @@ alongside the first real import job.
 | Worker lease-claim loop processing real jobs end to end | ✅ **verified**: worker log shows `import_job.processed status=activated valid=True error_count=0` — claimed the job, pulled files back out of object storage, ran the full validate→activate pipeline |
 | Status API (`GET /api/v1/imports/{id}`) | ✅ **verified**: polled after worker processing, returned `status=activated`, `activated_dataset_version_id` set, empty validation summary |
 | End-to-end data correctness | ✅ **verified**: queried Postgres directly — the 3 invoices from the uploaded bundle are present under the new `dataset_version_id` with exact `Decimal` amounts (1000.00 USD, 100.00 USD, 200.00 EUR) |
-| Import UI (upload, progress, row errors, activation history) | 🔲 not started — API is real and working; no frontend screen yet |
-| CSV templates for download, full `demo`/`invalid` generator profiles | 🔲 not started |
+| CSV template downloads (`GET /api/v1/templates`, `/{filename}`) | ✅ done — header-only CSVs generated from the same `ingestion/manifest.py` source of truth the validator uses, so a filled-in template always passes schema checks |
+| Import UI (file picker, snapshot date, upload, poll status, show validation errors) | ✅ built and rendering correctly in the live browser session (`frontend/src/pages/ImportPage.tsx`), wired to the exact same `/api/v1/imports` endpoint already proven by the curl-based upload test — ⚠️ the actual click-and-select-a-file interaction is **not** verified by browser automation here: this tool cannot programmatically attach a local file to an `<input type=file>` (browsers block that for security). A human should click through it once; everything it calls has independently been proven to work. |
+| Activation history (list of past import jobs, rollback) | 🔲 not started |
+| Full `demo`/`invalid` generator profiles | 🔲 not started — `small` profile (S01, S09) remains the only one implemented |
 
 **This closes the first genuine vertical slice** the build plan called
 for: a real browser login → authenticated API upload → durable worker

@@ -3,6 +3,7 @@ import { useAuth } from "react-oidc-context";
 import { apiFetch } from "../api/client";
 import { useApi } from "../hooks/useApi";
 import { DashboardPage } from "./DashboardPage";
+import { ImportPage } from "./ImportPage";
 
 interface MeResponse {
   email: string;
@@ -35,6 +36,8 @@ export function StatusPage() {
     return <p role="alert">Authentication error: {auth.error.message}</p>;
   }
 
+  const businessUnitId = meQuery.data?.business_units[0]?.id;
+
   return (
     <main style={{ fontFamily: "system-ui", padding: "2rem", maxWidth: 640 }}>
       <h1>RevenueFlow AI</h1>
@@ -55,9 +58,10 @@ export function StatusPage() {
           {meQuery.data && meQuery.data.business_units.length === 0 && (
             <p>No business unit access yet — ask an admin to grant one.</p>
           )}
-          {meQuery.data && meQuery.data.business_units.length > 0 && (
-            <DashboardPage businessUnitId={meQuery.data.business_units[0].id} />
+          {businessUnitId && meQuery.data?.role === "admin" && (
+            <ImportPage businessUnitId={businessUnitId} />
           )}
+          {businessUnitId && <DashboardPage businessUnitId={businessUnitId} />}
         </>
       ) : (
         <button onClick={() => auth.signinRedirect()}>Sign in with Keycloak</button>
