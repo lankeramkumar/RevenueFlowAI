@@ -50,10 +50,17 @@ cd infra && docker compose up --build
 - `npm run build` — succeeds
 - `npm run lint` (oxlint) — no errors
 
-### 2. Ingestion — not started
-Full CSV schema manifest/templates for all 12 files, raw storage with
-content-hash + idempotency key, staging validation, admin activation
-(transactional/versioned/rollback), lineage, import UI.
+### 2. Ingestion — in progress
+
+| Item | Status |
+|---|---|
+| Machine-readable schema manifest (required columns, PKs, status vocab, currency rules, FK rules) for all 13 files | ✅ done (`backend/src/revenueflowai/ingestion/manifest.py`) |
+| Pure CSV validator (schema/duplicate-PK/broken-FK/unknown-status/unsupported-currency/negative-amount) | ✅ done, no DB needed — unit-tested against the real generated `small` bundle (valid) and 6 deliberately broken fixtures (`tests/unit/test_ingestion_validator.py`, 7/7 passing) |
+| Raw file storage with content-hash + idempotency key | 🔲 not started — needs MinIO, ⏳ pending Docker |
+| Durable staging → admin activation (transactional, versioned, rollback) | 🔲 not started — needs Postgres, ⏳ pending Docker |
+| Lineage fields wired end-to-end from upload to row | 🔲 not started |
+| Import UI (upload, progress, row errors, activation history) | 🔲 not started |
+| CSV templates for download, full `demo`/`invalid` generator profiles | 🔲 not started |
 
 ### 3. Domain logic — not started
 Exact balance/aging/dispute/unbilled-shipment/receipt-match/hold/priority
@@ -91,7 +98,7 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 | Acceptance criterion (intent.md #) | Implementing component(s) | Test(s) | Status |
 |---|---|---|---|
 | 1. Clean checkout starts via Compose, migrates, demo login | `infra/docker-compose.yml`, `infra/keycloak/revenueflow-realm.json`, Dockerfiles | Manual: `docker compose up --build` | ⏳ pending Docker |
-| 3 (partial — import idempotency/versioning schema). Valid imports become selectable versions etc. | `models/ingestion.py` schema, `worker.py` lease loop | `tests/unit/test_models.py` (schema exists); no ingestion logic yet | 🔲 not started (Milestone 2) |
+| 3 (partial). Valid imports become selectable versions; invalid bundles never change active data | `models/ingestion.py` schema, `ingestion/validator.py`, `worker.py` lease loop | `tests/unit/test_ingestion_validator.py` (7/7: valid bundle + 6 broken fixtures) | ⏳ validation logic done; staging/activation transaction needs Postgres (Milestone 2 continuation) |
 | 4 (partial — fixtures only). Hand-calculated fixtures match domain outputs | `seed/scenarios.py` S01, S09 | `tests/unit/test_seed_scenarios.py` | ✅ fixture math verified; domain *service* to compute this from DB rows is Milestone 3 |
 | 12 (partial). Seeded generator produces repeatable bundles | `seed/cli.py`, `seed/scenarios.py` | `tests/unit/test_generator_reproducibility.py` | ✅ passing for `small` profile |
 | All other criteria (2, 5–11, 13) | — | — | 🔲 not started — tracked against later milestones |
