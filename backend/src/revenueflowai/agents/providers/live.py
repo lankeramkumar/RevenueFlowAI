@@ -1,0 +1,103 @@
+"""Live Anthropic-backed question planner.
+
+Claude only ever selects which specialist(s) to dispatch and extracts
+entity IDs from the question's text — it never computes a financial
+figure or invents a citation; that stays in the deterministic specialist
+handlers and domain services, exactly as in demo mode. This is a
+real, bounded Anthropic API call (model classification), not a
+full open-ended tool-calling loop — the full free-form tool-calling
+investigation loop is a documented future enhancement.
+"""
+
+import anthropic
+
+from revenueflowai.agents.providers.base import InvestigationPlan, QuestionPlanner, validate_plan
+
+PLANNER_MODEL = "claude-haiku-4-5-20251001"
+
+_PLAN_TOOL = {
+    "name": "submit_investigation_plan",
+    "description": "Submit which specialist(s) to dispatch for this question and any entity IDs found in it.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "dispatches": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "domain": {"type": "string", "enum": ["order", "ar", "cash"]},
+                        "intent": {"type": "string"},
+                    },
+                    "required": ["domain", "intent"],
+                },
+            },
+            "entities": {
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string"},
+                    "receipt_id": {"type": "string"},
+                    "order_id": {"type": "string"},
+                    "customer_id": {"type": "string"},
+                },
+            },
+        },
+        "required": ["dispatches", "entities"],
+    },
+}
+
+_SYSTEM_PROMPT = """You are a routing classifier for an Order-to-Cash investigation system.
+Given a user's question, decide which specialist domain(s) to dispatch and extract any
+entity IDs mentioned (invoice/receipt/order/customer IDs look like INV-1003, RCP-2001,
+ORD-3001, CUST-100).
+
+Available domain/intent pairs:
+- order: unbilled_shipments, order_hold, customer_summary
+- ar: invoice_overdue_dispute, aging_summary, customer_summary
+- cash: receipt_match, customer_summary
+
+If the question asks for a customer summary (outstanding balances, cash, disputes, holds),
+dispatch all three domains with intent customer_summary. Dispatch at most 3 specialists.
+You are only selecting which specialists should look up data -- never compute or state a
+financial figure yourself. Always call submit_investigation_plan."""
+
+
+class AnthropicQuestionPlanner(QuestionPlanner):
+    def __init__(self, api_key: str, model: str = PLANNER_MODEL):
+        self._client = anthropic.AsyncAnthropic(api_key=api_key)
+        self._model = model
+
+    async def plan(self, question: str, customer_id_hint: str | None) -> InvestigationPlan:
+        try:
+            response = await self._client.messages.create(  # type: ignore[call-overload]
+                model=self._model,
+                max_tokens=512,
+                system=_SYSTEM_PROMPT,
+                tools=[_PLAN_TOOL],
+                tool_choice={"type": "tool", "name": "submit_investigation_plan"},
+                messages=[{"role": "user", "content": question}],
+            )
+        except anthropic.APIError:
+            # Provider outage/timeout: fall back to an empty plan rather than
+            # crashing the turn -- the caller surfaces this as "no findings."
+            return InvestigationPlan(dispatches=(), entities={}, label="live_provider_error")
+
+        tool_use = next((b for b in response.content if b.type == "tool_use"), None)
+        if tool_use is None:
+            return InvestigationPlan(dispatches=(), entities={}, label="live_no_plan")
+
+        raw_dispatches = tool_use.input.get("dispatches", []) if isinstance(tool_use.input, dict) else []
+        raw_entities = tool_use.input.get("entities", {}) if isinstance(tool_use.input, dict) else {}
+
+        dispatches: list[tuple[str, str]] = [
+            (str(d.get("domain")), str(d.get("intent")))
+            for d in raw_dispatches
+            if isinstance(d, dict) and d.get("domain") and d.get("intent")
+        ]
+        entities = {k: v for k, v in (raw_entities or {}).items() if isinstance(v, str) and v}
+        if customer_id_hint and "customer_id" not in entities:
+            entities["customer_id"] = customer_id_hint
+
+        validated = validate_plan(dispatches, entities)
+        return InvestigationPlan(dispatches=validated, entities=entities, label="live")
