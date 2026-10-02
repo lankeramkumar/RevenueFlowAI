@@ -138,14 +138,22 @@ unrelated native service — see `infra/docker-compose.yml` and
 | `GET /api/v1/dashboard/aging-summary` API | ✅ **verified live**: called through a real browser session, returns per-currency-bucket decimal strings |
 | `GET /api/v1/me` (role + accessible business units) | ✅ **verified live**: frontend uses this to discover which business unit to query rather than hardcoding one |
 | Real dashboard screen rendering the above | ✅ **verified live in a browser**, screenshot-confirmed: EUR 200.00 in bucket 1-30, USD 100.00 in bucket 1-30, USD 600.00 in bucket 31-60 — exactly matching the S01/S09 hand-calculation, computed from real uploaded CSV data, not mocked |
+| Unbilled-shipment SQL service + `GET /api/v1/dashboard/unbilled-shipments` | ✅ **verified against live Postgres**: `domain/shipment_service.py` joins Shipment/ShipmentLine/OrderLine/InvoiceLine by external_id and wraps the pure function; test matches S05's partial-billing math exactly (8 shipped − 5 billed = 3 unbilled, $300 estimated value) |
+| Receipt-match SQL service + `GET /api/v1/receipts/{id}/matches` | ✅ **verified against live Postgres**: `domain/matching_service.py` scopes candidates to same customer+currency open invoices; test matches S03's exact-match-via-remittance-reference case |
+| Order-holds SQL service + `GET /api/v1/dashboard/order-holds` | ✅ **verified against live Postgres**: `domain/holds_service.py`; test matches S07's recorded-reason-without-asserted-cause case |
 | Exception-prioritization rules | 🔲 not started |
-| Remaining domain services (unbilled-shipment, receipt-match, holds) wired to SQL | 🔲 not started — pure functions exist (`domain/shipments.py`, `matching.py`, `holds.py`), only `balances.py` has a SQL-backed wrapper so far |
 
 **Tests added this pass:** `tests/unit/test_domain_balances.py`,
 `test_domain_shipments.py`, `test_domain_matching.py`, `test_domain_holds.py`
 (20 pure-function tests) plus `tests/integration/test_dashboard_aging_summary.py`
-(2 tests against live Postgres, reusing the real generator + activation
-pipeline). 45/45 backend tests pass; `ruff`/`mypy` clean.
+(2 tests) and `tests/integration/test_domain_sql_services.py` (3 tests,
+S03/S05/S07, inserting rows directly rather than through the CSV pipeline
+to isolate the service layer) — all against live Postgres. 48/48 backend
+tests pass; `ruff`/`mypy` clean. All four domain services now have SQL
+wrappers and live APIs; S01, S03, S05, S07, S09 have end-to-end coverage
+(generator or direct-insert fixture → SQL service → assertion). The
+remaining scenarios (S02, S04, S06, S08, S10–S14, S16) still have only
+pure-function coverage, not SQL-service coverage.
 
 **Typing bug found and fixed:** the money/quantity columns in
 `models/entities.py` were declared `Mapped[object]` instead of
