@@ -2,22 +2,25 @@
 
 Uses `SELECT ... FOR UPDATE SKIP LOCKED` leases (not an external queue broker)
 so job state survives worker crashes/restarts — see agent_architecture.md's
-durability requirements and intent.md's import lifecycle. The actual CSV
-staging/validation/activation logic is implemented in Milestone 2
-(revenueflowai.ingestion); this module owns only the lease/retry/dispatch loop.
+durability requirements and intent.md's import lifecycle.
 """
 
 import asyncio
 import logging
 import socket
+import tempfile
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import structlog
 from sqlalchemy import select, update
 
+from revenueflowai.config import get_settings
 from revenueflowai.db import AsyncSessionLocal
-from revenueflowai.models.ingestion import ImportJob
+from revenueflowai.ingestion.activation import validate_and_activate
+from revenueflowai.models.ingestion import ImportJob, ImportJobFile
+from revenueflowai.storage.s3_store import S3CompatibleObjectStore
 
 logging.basicConfig(level=logging.INFO)
 log = structlog.get_logger()
@@ -28,12 +31,16 @@ POLL_INTERVAL_SECONDS = 2
 MAX_ATTEMPTS = 5
 
 
-async def claim_next_job() -> ImportJob | None:
+async def claim_next_job() -> uuid.UUID | None:
+    """Leases one queued job and returns its ID (not the ORM object — the
+    session that claimed it closes immediately, so the object would be
+    detached; process_job re-fetches it on its own session instead).
+    """
     now = datetime.now(UTC)
     async with AsyncSessionLocal() as session:
         async with session.begin():
             stmt = (
-                select(ImportJob)
+                select(ImportJob.id)
                 .where(
                     ImportJob.status == "queued",
                     (ImportJob.lease_expires_at.is_(None)) | (ImportJob.lease_expires_at < now),
@@ -43,39 +50,63 @@ async def claim_next_job() -> ImportJob | None:
                 .limit(1)
                 .with_for_update(skip_locked=True)
             )
-            job = (await session.execute(stmt)).scalar_one_or_none()
-            if job is None:
+            job_id = (await session.execute(stmt)).scalar_one_or_none()
+            if job_id is None:
                 return None
 
             await session.execute(
                 update(ImportJob)
-                .where(ImportJob.id == job.id)
+                .where(ImportJob.id == job_id)
                 .values(
                     lease_owner=WORKER_ID,
                     lease_expires_at=now + LEASE_DURATION,
-                    attempt_count=job.attempt_count + 1,
+                    attempt_count=ImportJob.attempt_count + 1,
                     status="staging",
                 )
             )
-        return job
+        return job_id
 
 
-async def process_job(job: ImportJob) -> None:
-    """Milestone 2 fills this in with real CSV staging/validation/activation."""
-    log.info("import_job.claimed", job_id=str(job.id), worker=WORKER_ID)
+async def process_job(job_id: uuid.UUID) -> None:
+    settings = get_settings()
+    store = S3CompatibleObjectStore()
+
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            job = (
+                await session.execute(select(ImportJob).where(ImportJob.id == job_id))
+            ).scalar_one()
+            files = (
+                await session.execute(
+                    select(ImportJobFile).where(ImportJobFile.import_job_id == job_id)
+                )
+            ).scalars().all()
+
+            with tempfile.TemporaryDirectory(prefix=f"import-{job_id}-") as tmp:
+                bundle_dir = Path(tmp)
+                for f in files:
+                    data = await store.get_object(settings.s3_bucket_raw_imports, f.object_key)
+                    (bundle_dir / f.filename).write_bytes(data)
+
+                outcome = await validate_and_activate(session, job, bundle_dir, job.snapshot_date)
+
+            log.info(
+                "import_job.processed", job_id=str(job_id), status=job.status,
+                valid=outcome.validation.is_valid, error_count=len(outcome.validation.errors),
+            )
 
 
 async def run_forever() -> None:
     log.info("worker.started", worker=WORKER_ID)
     while True:
-        job = await claim_next_job()
-        if job is None:
+        job_id = await claim_next_job()
+        if job_id is None:
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             continue
         try:
-            await process_job(job)
+            await process_job(job_id)
         except Exception:
-            log.exception("import_job.failed", job_id=str(job.id))
+            log.exception("import_job.failed", job_id=str(job_id))
 
 
 if __name__ == "__main__":

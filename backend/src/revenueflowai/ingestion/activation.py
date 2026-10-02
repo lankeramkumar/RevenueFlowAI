@@ -45,6 +45,7 @@ async def get_or_create_import_job(
     created_by_user_id: UUID,
     idempotency_key: str,
     bundle_hash: str,
+    snapshot_date: date,
 ) -> tuple[ImportJob, bool]:
     """Returns (job, is_existing). A repeated upload with the same
     idempotency_key returns the original job untouched rather than creating
@@ -68,6 +69,7 @@ async def get_or_create_import_job(
         created_by_user_id=created_by_user_id,
         idempotency_key=idempotency_key,
         bundle_hash=bundle_hash,
+        snapshot_date=snapshot_date,
         status="queued",
     )
     session.add(job)

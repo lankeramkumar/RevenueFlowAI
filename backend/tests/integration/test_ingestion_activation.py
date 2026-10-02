@@ -44,7 +44,8 @@ async def test_valid_bundle_activates_and_loads_rows(db_session, tenant, tmp_pat
     bundle_hash = compute_bundle_hash(bundle_dir)
 
     job, was_existing = await get_or_create_import_job(
-        db_session, org.id, bu.id, user.id, idempotency_key="upload-1", bundle_hash=bundle_hash
+        db_session, org.id, bu.id, user.id, idempotency_key="upload-1", bundle_hash=bundle_hash,
+        snapshot_date=date(2026, 10, 2),
     )
     assert not was_existing
 
@@ -85,12 +86,14 @@ async def test_repeated_upload_is_idempotent(db_session, tenant, tmp_path):
     bundle_hash = compute_bundle_hash(bundle_dir)
 
     job1, _ = await get_or_create_import_job(
-        db_session, org.id, bu.id, user.id, idempotency_key="same-key", bundle_hash=bundle_hash
+        db_session, org.id, bu.id, user.id, idempotency_key="same-key", bundle_hash=bundle_hash,
+        snapshot_date=date(2026, 10, 2),
     )
     await validate_and_activate(db_session, job1, bundle_dir, snapshot_date=date(2026, 10, 2))
 
     job2, was_existing = await get_or_create_import_job(
-        db_session, org.id, bu.id, user.id, idempotency_key="same-key", bundle_hash=bundle_hash
+        db_session, org.id, bu.id, user.id, idempotency_key="same-key", bundle_hash=bundle_hash,
+        snapshot_date=date(2026, 10, 2),
     )
     assert was_existing
     assert job2.id == job1.id
@@ -116,7 +119,7 @@ async def test_invalid_bundle_is_rejected_without_touching_active_dataset(db_ses
 
     first_job, _ = await get_or_create_import_job(
         db_session, org.id, bu.id, user.id, idempotency_key="valid-upload",
-        bundle_hash=compute_bundle_hash(valid_bundle),
+        bundle_hash=compute_bundle_hash(valid_bundle), snapshot_date=date(2026, 10, 2),
     )
     first_outcome = await validate_and_activate(
         db_session, first_job, valid_bundle, snapshot_date=date(2026, 10, 2)
@@ -134,7 +137,7 @@ async def test_invalid_bundle_is_rejected_without_touching_active_dataset(db_ses
 
     second_job, _ = await get_or_create_import_job(
         db_session, org.id, bu.id, user.id, idempotency_key="invalid-upload",
-        bundle_hash=compute_bundle_hash(invalid_bundle),
+        bundle_hash=compute_bundle_hash(invalid_bundle), snapshot_date=date(2026, 10, 3),
     )
     second_outcome = await validate_and_activate(
         db_session, second_job, invalid_bundle, snapshot_date=date(2026, 10, 3)

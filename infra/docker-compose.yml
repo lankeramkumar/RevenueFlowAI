@@ -66,7 +66,13 @@ services:
       - ../backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://revenueflow:revenueflow@db:5432/revenueflow
-      OIDC_ISSUER: http://keycloak:8080/realms/revenueflow
+      # Tokens are only ever issued via the browser hitting Keycloak at
+      # localhost:8080 (the host-mapped port), so that's the `iss` claim
+      # every real token carries -- validate against that. JWKS fetching
+      # is container-to-container traffic instead, so it uses the
+      # Docker-network hostname (which localhost:8080 doesn't resolve to
+      # from inside this container).
+      OIDC_ISSUER: http://localhost:8080/realms/revenueflow
       OIDC_JWKS_URL: http://keycloak:8080/realms/revenueflow/protocol/openid-connect/certs
       S3_ENDPOINT_URL: http://localstack:4566
     depends_on:

@@ -38,6 +38,9 @@ class ImportJob(PrimaryKeyMixin, TimestampMixin, Base):
 
     idempotency_key: Mapped[str] = mapped_column(String(128), nullable=False)
     bundle_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    # Business as-of date for the uploaded snapshot — distinct from
+    # created_at (processing time), per intent.md's freshness requirement.
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_detail: Mapped[dict | None] = mapped_column(JSON, nullable=True)

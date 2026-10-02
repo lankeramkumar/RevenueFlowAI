@@ -81,10 +81,28 @@ alongside the first real import job.
 | Bundle hashing + idempotent import-job creation | ✅ **verified against live Postgres** (`ingestion/activation.py`: `compute_bundle_hash`, `get_or_create_import_job`) |
 | Durable staging → transactional activation (supersede old version, create new, reject atomically on invalid) | ✅ **verified against live Postgres**: valid bundle activates and becomes the active `DatasetVersion`; invalid bundle is rejected (`status='rejected'`) with the *previous* active dataset confirmed unchanged; repeat upload with the same idempotency key replays without creating a duplicate dataset version |
 | CSV row loader into scoped entity tables (all 13 files, Decimal/date-typed) | ✅ **verified against live Postgres**: generated `small` bundle's 3 invoices land correctly with exact `Decimal` amounts and full scope/lineage (`organization_id`, `business_unit_id`, `dataset_version_id`, `import_job_id`, `source_filename`, `source_row_number`) — `ingestion/loader.py` |
-| Raw file storage in object store (content-hash, keyed by import job) | 🔲 not started — loader currently reads straight from the generator's output directory; wiring an HTTP upload endpoint through `S3CompatibleObjectStore` first is next |
-| Worker lease-claim loop processing real jobs end to end | 🔲 not started — `worker.py`'s claim loop exists but `process_job` is still a stub; needs the upload-endpoint → job → activation chain wired together |
-| Import UI (upload, progress, row errors, activation history) | 🔲 not started |
+| Upload API (`POST /api/v1/imports`, admin-only, multipart) | ✅ **verified against the real running stack**: authenticated with a real Keycloak-issued token, uploaded the generated `small` bundle (13 files) over real HTTP, got back a `queued` job |
+| Raw file storage in object store, keyed by org/job/filename | ✅ **verified**: all 13 files confirmed physically present in LocalStack via `awslocal s3 ls`, with `ImportJobFile` rows recording hash/size/key |
+| Worker lease-claim loop processing real jobs end to end | ✅ **verified**: worker log shows `import_job.processed status=activated valid=True error_count=0` — claimed the job, pulled files back out of object storage, ran the full validate→activate pipeline |
+| Status API (`GET /api/v1/imports/{id}`) | ✅ **verified**: polled after worker processing, returned `status=activated`, `activated_dataset_version_id` set, empty validation summary |
+| End-to-end data correctness | ✅ **verified**: queried Postgres directly — the 3 invoices from the uploaded bundle are present under the new `dataset_version_id` with exact `Decimal` amounts (1000.00 USD, 100.00 USD, 200.00 EUR) |
+| Import UI (upload, progress, row errors, activation history) | 🔲 not started — API is real and working; no frontend screen yet |
 | CSV templates for download, full `demo`/`invalid` generator profiles | 🔲 not started |
+
+**This closes the first genuine vertical slice** the build plan called
+for: a real browser login → authenticated API upload → durable worker
+processing → activated dataset → queryable rows in Postgres, with nothing
+mocked at any layer. One more real bug found and fixed while wiring this:
+Keycloak's dev-mode issuer is derived from the Host header of whoever
+requests a token — since only the browser (via `localhost:8080`) ever
+drives the login flow, tokens carry `iss=http://localhost:8080/...`, but
+the backend container was validating against the Docker-network hostname
+`http://keycloak:8080/...`, causing every real token to fail issuer
+validation. Fixed by splitting the settings: `OIDC_ISSUER` now matches
+what's actually in tokens (`localhost:8080`) while `OIDC_JWKS_URL` stays
+on the container-reachable hostname (`keycloak:8080`) for fetching
+signing keys — these were already independent settings in
+`auth/oidc.py`, just misconfigured in Compose.
 
 **New integration test suite** (`tests/integration/`, requires live Postgres,
 auto-skips otherwise): `test_ingestion_activation.py` — 3/3 passing,
@@ -152,8 +170,8 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 
 | Acceptance criterion (intent.md #) | Implementing component(s) | Test(s) | Status |
 |---|---|---|---|
-| 1. Clean checkout starts via Compose, migrates, demo login | `infra/docker-compose.yml`, `infra/keycloak/revenueflow-realm.json`, Dockerfiles | Manual: `docker compose up --build` | ⏳ pending Docker |
-| 3 (partial). Valid imports become selectable versions; invalid bundles never change active data | `models/ingestion.py` schema, `ingestion/validator.py`, `worker.py` lease loop | `tests/unit/test_ingestion_validator.py` (7/7: valid bundle + 6 broken fixtures) | ⏳ validation logic done; staging/activation transaction needs Postgres (Milestone 2 continuation) |
+| 1. Clean checkout starts via Compose, migrates, demo login | `infra/docker-compose.yml`, `infra/keycloak/revenueflow-realm.json`, Dockerfiles | Manual: `docker compose up --build` + browser login | ✅ verified live (screenshot-confirmed demo-admin login) |
+| 3. Valid imports become selectable versions; invalid bundles never change active data; repeat uploads idempotent | `api/imports.py`, `ingestion/activation.py`, `ingestion/loader.py`, `worker.py` | `tests/unit/test_ingestion_validator.py` (7/7) + `tests/integration/test_ingestion_activation.py` (3/3) + a real HTTP upload through the running stack | ✅ verified end-to-end (real upload → worker → activated dataset → queried rows); worker crash-restart recovery still ⏳ untested (Milestone 2 continuation) |
 | 4. Hand-calculated fixtures match domain outputs exactly; currency totals stay separate | `domain/balances.py`, `domain/shipments.py`, `domain/matching.py`, `domain/holds.py` | `tests/unit/test_domain_*.py` (20 tests, S01-S14+S16) | ✅ pure-function layer verified; SQL-backed service wrapping real dataset-version rows is ⏳ pending Docker |
 | 12 (partial). Seeded generator produces repeatable bundles | `seed/cli.py`, `seed/scenarios.py` | `tests/unit/test_generator_reproducibility.py` | ✅ passing for `small` profile |
 | All other criteria (2, 5–11, 13) | — | — | 🔲 not started — tracked against later milestones |
