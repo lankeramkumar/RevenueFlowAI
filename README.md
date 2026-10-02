@@ -78,8 +78,10 @@ in later milestones (see [docs/implementation-plan.md](docs/implementation-plan.
 
 ## Troubleshooting
 
-- **No Docker/Postgres on this machine**: backend DB-dependent checks
-  (migrations against a live DB, Compose boot, Keycloak login) could not be
-  executed on the machine this was built on — see
-  [docs/implementation-plan.md](docs/implementation-plan.md) for exactly
-  which checks are pending real verification.
+- **Postgres on a non-default port**: Compose maps the `db` service to
+  **host port 5433**, not 5432 — a locally installed Postgres service can
+  already be bound to 5432, and connecting to the wrong instance fails
+  with a confusing "password authentication failed" rather than a clear
+  "can't connect." `psql -h localhost -p 5433 -U revenueflow revenueflow`
+  reaches the Compose database; the container's *internal* port is still
+  5432 (only the host-side mapping changed).

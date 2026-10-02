@@ -78,11 +78,32 @@ alongside the first real import job.
 |---|---|
 | Machine-readable schema manifest (required columns, PKs, status vocab, currency rules, FK rules) for all 13 files | ✅ done (`backend/src/revenueflowai/ingestion/manifest.py`) |
 | Pure CSV validator (schema/duplicate-PK/broken-FK/unknown-status/unsupported-currency/negative-amount) | ✅ done, no DB needed — unit-tested against the real generated `small` bundle (valid) and 6 deliberately broken fixtures (`tests/unit/test_ingestion_validator.py`, 7/7 passing) |
-| Raw file storage with content-hash + idempotency key | 🔲 not started — needs the live object store, ⏳ pending Compose boot |
-| Durable staging → admin activation (transactional, versioned, rollback) | 🔲 not started — needs Postgres, ⏳ pending Docker |
-| Lineage fields wired end-to-end from upload to row | 🔲 not started |
+| Bundle hashing + idempotent import-job creation | ✅ **verified against live Postgres** (`ingestion/activation.py`: `compute_bundle_hash`, `get_or_create_import_job`) |
+| Durable staging → transactional activation (supersede old version, create new, reject atomically on invalid) | ✅ **verified against live Postgres**: valid bundle activates and becomes the active `DatasetVersion`; invalid bundle is rejected (`status='rejected'`) with the *previous* active dataset confirmed unchanged; repeat upload with the same idempotency key replays without creating a duplicate dataset version |
+| CSV row loader into scoped entity tables (all 13 files, Decimal/date-typed) | ✅ **verified against live Postgres**: generated `small` bundle's 3 invoices land correctly with exact `Decimal` amounts and full scope/lineage (`organization_id`, `business_unit_id`, `dataset_version_id`, `import_job_id`, `source_filename`, `source_row_number`) — `ingestion/loader.py` |
+| Raw file storage in object store (content-hash, keyed by import job) | 🔲 not started — loader currently reads straight from the generator's output directory; wiring an HTTP upload endpoint through `S3CompatibleObjectStore` first is next |
+| Worker lease-claim loop processing real jobs end to end | 🔲 not started — `worker.py`'s claim loop exists but `process_job` is still a stub; needs the upload-endpoint → job → activation chain wired together |
 | Import UI (upload, progress, row errors, activation history) | 🔲 not started |
 | CSV templates for download, full `demo`/`invalid` generator profiles | 🔲 not started |
+
+**New integration test suite** (`tests/integration/`, requires live Postgres,
+auto-skips otherwise): `test_ingestion_activation.py` — 3/3 passing,
+exercising the real activate/idempotency/rejection paths end to end. Fixed
+two real bugs found while wiring this up: (1) `backend/src/revenueflowai/ingestion/loader.py`
+was passing date strings straight to `Date`-typed columns, which asyncpg
+rejects — added proper `date.fromisoformat` coercion; (2) a module-level
+async engine singleton reused across pytest-asyncio's per-test event loops
+breaks asyncpg on Windows ("attached to a different loop") — fixed by
+pinning `asyncio_default_fixture_loop_scope`/`asyncio_default_test_loop_scope`
+to `"session"` in `pyproject.toml`.
+
+**Infra fix (unrelated to this project, but blocking it):** a pre-existing
+native PostgreSQL 18 Windows service on this machine was also bound to
+port 5432, silently intercepting connections meant for the Compose
+container (wrong credentials, very confusing error). Remapped the
+Compose `db` service to host port **5433** rather than touching the
+unrelated native service — see `infra/docker-compose.yml` and
+`backend/.env.example`.
 
 ### 3. Domain logic — in progress
 

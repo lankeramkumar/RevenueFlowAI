@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     app_env: str = Field(default="development")
     demo_mode: bool = Field(default=True)
 
-    database_url: str = Field(default="postgresql+asyncpg://revenueflow:revenueflow@localhost:5432/revenueflow")
+    database_url: str = Field(default="postgresql+asyncpg://revenueflow:revenueflow@localhost:5433/revenueflow")
 
     oidc_issuer: str = Field(default="http://localhost:8080/realms/revenueflow")
     oidc_audience: str = Field(default="revenueflow-backend")
