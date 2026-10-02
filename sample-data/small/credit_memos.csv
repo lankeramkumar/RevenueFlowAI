@@ -1,0 +1,2 @@
+credit_memo_id,customer_id,invoice_id,currency,credit_amount,status
+S01-CM,S01-CUST,S01-INV-1000,USD,100.00,posted

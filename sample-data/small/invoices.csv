@@ -1,0 +1,4 @@
+invoice_id,customer_id,order_id,invoice_date,due_date,currency,invoice_amount,status
+S01-INV-1000,S01-CUST,,2026-07-19,2026-08-18,USD,1000.00,posted
+S09-INV-USD,S09-CUST,,2026-08-28,2026-09-27,USD,100.00,posted
+S09-INV-EUR,S09-CUST,,2026-08-28,2026-09-27,EUR,200.00,posted

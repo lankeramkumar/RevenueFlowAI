@@ -12,6 +12,10 @@ dist/
 .venv/
 venv/
 
+# Node / frontend
+node_modules/
+frontend/dist/
+
 # Test / coverage
 .pytest_cache/
 .coverage
@@ -27,3 +31,9 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated sample data (reproducible from the generator; keep repo lean).
+# Small fixture bundles used by tests are the exception — commit those explicitly.
+/sample-data/demo/
+/sample-data/load/
+/sample-data/invalid/

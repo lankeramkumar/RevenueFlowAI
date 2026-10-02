@@ -1,0 +1,24 @@
+[
+  {
+    "description": "partial payment",
+    "expected": {
+      "aging_bucket": "31-60",
+      "currency": "USD",
+      "days_overdue": 45,
+      "invoice_id": "S01-INV-1000",
+      "open_balance": "600.00"
+    },
+    "scenario_id": "S01"
+  },
+  {
+    "description": "currency boundary",
+    "expected": {
+      "note": "Never combined into a single cross-currency total.",
+      "totals_by_currency": {
+        "EUR": "200.00",
+        "USD": "100.00"
+      }
+    },
+    "scenario_id": "S09"
+  }
+]

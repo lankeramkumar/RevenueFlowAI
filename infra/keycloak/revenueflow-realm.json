@@ -1,0 +1,97 @@
+{
+  "realm": "revenueflow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "admin", "description": "Users, configuration, imports, dataset activation, audit access" },
+      { "name": "analyst", "description": "Read authorized data/investigations; create and update own tasks" },
+      { "name": "approver", "description": "Analyst abilities plus approve/reject assigned recommendations" },
+      { "name": "viewer", "description": "Read authorized dashboards and investigations only" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "revenueflow-backend",
+      "name": "RevenueFlow AI backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "secret": "revenueflow-backend-demo-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "revenueflow-frontend",
+      "name": "RevenueFlow AI frontend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "backend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "revenueflow-backend",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "demo-admin",
+      "email": "demo-admin@revenueflow.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Admin",
+      "credentials": [{ "type": "password", "value": "DemoPass123!", "temporary": false }],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "demo-analyst",
+      "email": "demo-analyst@revenueflow.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Analyst",
+      "credentials": [{ "type": "password", "value": "DemoPass123!", "temporary": false }],
+      "realmRoles": ["analyst"]
+    },
+    {
+      "username": "demo-approver",
+      "email": "demo-approver@revenueflow.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Approver",
+      "credentials": [{ "type": "password", "value": "DemoPass123!", "temporary": false }],
+      "realmRoles": ["approver"]
+    },
+    {
+      "username": "demo-viewer",
+      "email": "demo-viewer@revenueflow.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "Viewer",
+      "credentials": [{ "type": "password", "value": "DemoPass123!", "temporary": false }],
+      "realmRoles": ["viewer"]
+    }
+  ]
+}

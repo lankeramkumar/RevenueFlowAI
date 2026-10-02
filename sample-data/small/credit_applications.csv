@@ -1,0 +1,2 @@
+credit_application_id,credit_memo_id,invoice_id,applied_amount,application_date,status
+S01-CAPP-1,S01-CM,S01-INV-1000,100.00,2026-08-18,posted

@@ -1,0 +1,2 @@
+receipt_id,customer_id,receipt_date,currency,receipt_amount,status,remittance_reference
+S01-RCP,S01-CUST,2026-08-18,USD,300.00,posted,S01-INV-1000

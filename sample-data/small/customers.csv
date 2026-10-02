@@ -1,0 +1,3 @@
+customer_id,account_number,customer_name,payment_terms_days
+S01-CUST,ACC-S01,Scenario S01 Co,30
+S09-CUST,ACC-S09,Scenario S09 Co,30
