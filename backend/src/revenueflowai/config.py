@@ -21,9 +21,9 @@ class Settings(BaseSettings):
     )
     jwt_leeway_seconds: int = Field(default=10)
 
-    s3_endpoint_url: str = Field(default="http://localhost:9000")
-    s3_access_key: str = Field(default="revenueflow")
-    s3_secret_key: str = Field(default="revenueflow-minio")
+    s3_endpoint_url: str = Field(default="http://localhost:4566")
+    s3_access_key: str = Field(default="test")
+    s3_secret_key: str = Field(default="test")
     s3_bucket_raw_imports: str = Field(default="raw-imports")
     s3_bucket_exports: str = Field(default="exports")
     s3_region: str = Field(default="us-east-1")

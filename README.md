@@ -14,7 +14,7 @@ see the implementation plan for what's done vs. pending.
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL2 backend on Windows) — for the full stack (Postgres, MinIO, Keycloak, backend, worker, frontend)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (WSL2 backend on Windows) — for the full stack (Postgres, LocalStack S3, Keycloak, backend, worker, frontend)
 - Python 3.11+ and Node 22+ — only needed for running backend/frontend outside Docker
 
 ## Clean-checkout startup (once Docker Desktop is installed)
@@ -24,14 +24,14 @@ cd infra
 docker compose up --build
 ```
 
-This starts Postgres, MinIO, Keycloak (with a seeded demo realm), the
-FastAPI backend (migrations apply automatically on container start), the
-import worker, and the frontend.
+This starts Postgres, LocalStack (S3-compatible object storage), Keycloak
+(with a seeded demo realm), the FastAPI backend (migrations apply
+automatically on container start), the import worker, and the frontend.
 
 - Frontend: http://localhost:5173
 - Backend API docs: http://localhost:8000/docs
 - Keycloak admin console: http://localhost:8080 (admin/admin)
-- MinIO console: http://localhost:9001 (revenueflow/revenueflow-minio)
+- LocalStack S3 endpoint: http://localhost:4566 (credentials: test/test)
 
 ### Demo login
 

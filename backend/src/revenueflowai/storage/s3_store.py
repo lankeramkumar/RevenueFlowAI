@@ -1,4 +1,9 @@
-"""MinIO (S3-compatible) implementation of ObjectStore, for local/dev Compose use."""
+"""S3-compatible implementation of ObjectStore.
+
+Works against any S3-compatible endpoint via boto3's endpoint_url override
+— LocalStack locally (see infra/docker-compose.yml), real AWS S3 (or
+MinIO) in other environments, just by changing S3_ENDPOINT_URL.
+"""
 
 import aioboto3
 from botocore.client import Config as BotoConfig
@@ -8,7 +13,7 @@ from revenueflowai.config import get_settings
 from revenueflowai.storage.base import ObjectStore
 
 
-class MinioObjectStore(ObjectStore):
+class S3CompatibleObjectStore(ObjectStore):
     def __init__(self) -> None:
         settings = get_settings()
         self._session = aioboto3.Session()

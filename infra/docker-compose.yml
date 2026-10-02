@@ -17,34 +17,27 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+  localstack:
+    # S3-compatible local object store. MinIO's Docker Hub and Quay images
+    # now require a registry login (anonymous pulls denied as of this
+    # build) — LocalStack's S3 service is the documented fallback from the
+    # original stack decision and pulls publicly; see
+    # docs/implementation-plan.md's decisions log for this deviation.
+    # :latest now gates S3 behind a paid license activation check; this
+    # pinned community version (pre-paywall) works without a token.
+    image: localstack/localstack:3.8
     environment:
-      MINIO_ROOT_USER: revenueflow
-      MINIO_ROOT_PASSWORD: revenueflow-minio
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
     volumes:
-      - minio-data:/data
+      - localstack-data:/var/lib/localstack
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "4566:4566"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/4566"]
       interval: 5s
       timeout: 5s
-      retries: 10
-
-  minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 revenueflow revenueflow-minio &&
-      mc mb -p local/raw-imports local/exports &&
-      exit 0
-      "
+      retries: 15
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
@@ -72,11 +65,11 @@ services:
       DATABASE_URL: postgresql+asyncpg://revenueflow:revenueflow@db:5432/revenueflow
       OIDC_ISSUER: http://keycloak:8080/realms/revenueflow
       OIDC_JWKS_URL: http://keycloak:8080/realms/revenueflow/protocol/openid-connect/certs
-      S3_ENDPOINT_URL: http://minio:9000
+      S3_ENDPOINT_URL: http://localstack:4566
     depends_on:
       db:
         condition: service_healthy
-      minio:
+      localstack:
         condition: service_healthy
       keycloak:
         condition: service_healthy
@@ -97,11 +90,11 @@ services:
       - ../backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://revenueflow:revenueflow@db:5432/revenueflow
-      S3_ENDPOINT_URL: http://minio:9000
+      S3_ENDPOINT_URL: http://localstack:4566
     depends_on:
       db:
         condition: service_healthy
-      minio:
+      localstack:
         condition: service_healthy
 
   frontend:
@@ -119,4 +112,4 @@ services:
 
 volumes:
   db-data:
-  minio-data:
+  localstack-data:
