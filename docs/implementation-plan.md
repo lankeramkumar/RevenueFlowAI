@@ -62,11 +62,23 @@ cd infra && docker compose up --build
 | Import UI (upload, progress, row errors, activation history) | 🔲 not started |
 | CSV templates for download, full `demo`/`invalid` generator profiles | 🔲 not started |
 
-### 3. Domain logic — not started
-Exact balance/aging/dispute/unbilled-shipment/receipt-match/hold/priority
-services; all S01–S17 fixtures (S01, S09 data exist from Milestone 1's
-generator — the domain *services* that compute against them don't exist
-yet); APIs over these services.
+### 3. Domain logic — in progress
+
+| Item | Status |
+|---|---|
+| Pure calculation functions: open balance, overapplication flag, aging bucket/days-overdue, unapplied receipt, dispute annotation | ✅ done (`domain/balances.py`) |
+| Unbilled-shipment reconciliation (partial/full/insufficient-evidence) | ✅ done (`domain/shipments.py`) |
+| Receipt match proposals (exact/ambiguous/bounded multi-invoice) | ✅ done (`domain/matching.py`) |
+| Order hold presentation (no asserted cause) | ✅ done (`domain/holds.py`) |
+| Scenario coverage against hand-transcribed S01–S17 expected values | ✅ S01–S14, S16 covered (16/17); S15 (cross-org isolation) and S17 (prompt-injection) are integration/agent-layer concerns deferred to Milestones 2's authz tests and Milestone 5 respectively — tracked, not silently dropped |
+| SQL-backed services wrapping these pure functions with real dataset-version queries | 🔲 not started — needs Postgres, ⏳ pending Docker |
+| Exception-prioritization rules | 🔲 not started |
+| REST APIs exposing these calculations | 🔲 not started |
+
+**Tests added this pass:** `tests/unit/test_domain_balances.py`,
+`test_domain_shipments.py`, `test_domain_matching.py`, `test_domain_holds.py`
+— 20 tests, all passing, pure Python (no DB). Combined with Milestones 1–2,
+32/32 backend tests pass; `ruff`/`mypy` clean.
 
 ### 4. Operational interface — not started
 Dashboard, exception workbench, customer timeline, evidence drawers,
@@ -99,7 +111,7 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 |---|---|---|---|
 | 1. Clean checkout starts via Compose, migrates, demo login | `infra/docker-compose.yml`, `infra/keycloak/revenueflow-realm.json`, Dockerfiles | Manual: `docker compose up --build` | ⏳ pending Docker |
 | 3 (partial). Valid imports become selectable versions; invalid bundles never change active data | `models/ingestion.py` schema, `ingestion/validator.py`, `worker.py` lease loop | `tests/unit/test_ingestion_validator.py` (7/7: valid bundle + 6 broken fixtures) | ⏳ validation logic done; staging/activation transaction needs Postgres (Milestone 2 continuation) |
-| 4 (partial — fixtures only). Hand-calculated fixtures match domain outputs | `seed/scenarios.py` S01, S09 | `tests/unit/test_seed_scenarios.py` | ✅ fixture math verified; domain *service* to compute this from DB rows is Milestone 3 |
+| 4. Hand-calculated fixtures match domain outputs exactly; currency totals stay separate | `domain/balances.py`, `domain/shipments.py`, `domain/matching.py`, `domain/holds.py` | `tests/unit/test_domain_*.py` (20 tests, S01-S14+S16) | ✅ pure-function layer verified; SQL-backed service wrapping real dataset-version rows is ⏳ pending Docker |
 | 12 (partial). Seeded generator produces repeatable bundles | `seed/cli.py`, `seed/scenarios.py` | `tests/unit/test_generator_reproducibility.py` | ✅ passing for `small` profile |
 | All other criteria (2, 5–11, 13) | — | — | 🔲 not started — tracked against later milestones |
 
