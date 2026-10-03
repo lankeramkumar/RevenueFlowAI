@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -67,23 +67,25 @@ def pending_subject_for(email: str) -> str:
 
 
 async def _bind_pending_user(session: AsyncSession, subject: str, email: str) -> AppUser | None:
-    """A user pre-provisioned by email (bootstrap or the Admin screen) gets
-    their Keycloak subject bound on first sign-in. Only the exact pending
-    subject for this verified email is matched, so no other identity can
-    claim the row.
+    """Links a sign-in to the application account for the same verified email.
+    Covers two cases: a user pre-provisioned by email (bootstrap or the Admin
+    screen) on first sign-in, and an existing account whose Keycloak subject
+    changed (for example after the identity realm is re-imported). The email
+    is unique in app_users and Keycloak only reports verified emails here, so
+    no other identity can take over the account.
     """
-    pending = (
+    account = (
         await session.execute(
             select(AppUser)
             .options(selectinload(AppUser.granted_business_units))
-            .where(AppUser.oidc_subject == pending_subject_for(email))
+            .where(func.lower(AppUser.email) == email.strip().lower())
         )
     ).scalar_one_or_none()
-    if pending is None:
+    if account is None:
         return None
-    pending.oidc_subject = subject
+    account.oidc_subject = subject
     await session.commit()
-    return pending
+    return account
 
 
 def require_role(*allowed_roles: str) -> Callable:

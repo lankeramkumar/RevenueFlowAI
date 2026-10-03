@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { useMe } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
+import { cellStyle, numericCellStyle, tableStyle } from "../ui/tableStyles";
 
 interface Evidence {
   source_type: string;
@@ -162,22 +163,22 @@ function AssistantMessage({
       )}
 
       {data.metrics.length > 0 && (
-        <table style={{ borderCollapse: "collapse", fontSize: 13 }}>
+        <table style={{ ...tableStyle, fontSize: 13 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", padding: "2px 12px 2px 0" }}>Metric</th>
-              <th style={{ textAlign: "right", padding: "2px 12px" }}>Value</th>
-              <th style={{ textAlign: "left", padding: "2px 0" }}>Currency</th>
+              <th style={cellStyle}>Metric</th>
+              <th style={{ ...cellStyle, textAlign: "right" }}>Value</th>
+              <th style={cellStyle}>Currency</th>
             </tr>
           </thead>
           <tbody>
             {data.metrics.map((m, i) => (
               <tr key={i} title={m.calculation_provenance}>
-                <td style={{ padding: "2px 12px 2px 0" }}>{m.name}</td>
-                <td style={{ textAlign: "right", padding: "2px 12px", fontVariantNumeric: "tabular-nums" }}>
+                <td style={cellStyle}>{m.name}</td>
+                <td style={numericCellStyle}>
                   {Number(m.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
-                <td style={{ padding: "2px 0" }}>{m.unit_or_currency}</td>
+                <td style={cellStyle}>{m.unit_or_currency}</td>
               </tr>
             ))}
           </tbody>

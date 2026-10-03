@@ -120,10 +120,7 @@ data. No public deployment or external account changes have been made.
 
 ## Changes to the threat surface (2026-10-03)
 
-- **First-sign-in binding.** A pre-provisioned admin (`pending:<email>`) is
-  bound to a Keycloak subject only when the token's `email_verified` claim is
-  true. An unverified email cannot claim a pending account (tested in
-  `tests/integration/test_pending_binding_and_seed.py`).
+- **Sign-in linking.** A sign-in is linked to the account with the same verified email, either a pre-provisioned admin (`pending:<email>`) or an existing account whose Keycloak subject changed (for example after the identity realm is re-imported). Linking happens only when the token's `email_verified` claim is true; emails are unique in the application database.
 - **Tool and job scope.** Specialist tools called with another organization's
   business unit return nothing, and import-job status returns 404 across
   organizations (both tested).

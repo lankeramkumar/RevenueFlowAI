@@ -1,22 +1,23 @@
 # RevenueFlow AI
 
-**An Order-to-Cash exception investigator.** Upload CSV exports of orders,
-shipments, invoices, receipts, and disputes; the app finds where billing and
-cash are blocked, computes the numbers in deterministic SQL-backed code, and
-answers questions through a Supervisor + Order / AR / Cash specialist team.
-Every answer cites the stored records behind it, and every citation opens to
-the underlying row.
+**An Order-to-Cash exception investigator.** It finds where billing and cash
+are blocked in CSV exports of orders, shipments, invoices, and receipts, and
+answers questions about them. The numbers come from deterministic SQL code,
+never from a language model. Every answer cites the stored records behind it,
+and each citation opens to the underlying row.
 
-![Dashboard](docs/screenshots/01-dashboard.png)
+[![Watch the 60-second walkthrough](docs/demo/poster.png)](docs/demo/walkthrough.mp4)
 
-| | |
-|---|---|
-| Investigation with citations | ![Cited answer](docs/screenshots/04-investigation-cited-answer.png) |
-| Follow-up resolved from the prior turn | ![Follow-up](docs/screenshots/05-investigation-follow-up.png) |
-| Evidence drill-down (stored record and linked rows) | ![Evidence](docs/screenshots/06-evidence-drill-down.png) |
-| Exception workbench (filter, sort, paginate, evidence) | ![Workbench](docs/screenshots/02-exception-workbench.png) |
-| Customer timeline (balances, aging, events) | ![Customer](docs/screenshots/03-customer-timeline.png) |
-| Admin: business units and users | ![Admin](docs/screenshots/07-admin.png) |
+*60-second walkthrough: an investigation with citations, a follow-up, and the evidence drawer.*
+
+**Highlights**
+
+- Deterministic finance: Decimal-exact aging, unbilled-shipment, and receipt-matching logic, with currencies never combined.
+- Investigation with citations: a Supervisor routes questions to Order, AR, and Cash specialists. Demo and live modes share the same execution path.
+- Evals and observability: a 10-case eval suite (10/10 in both modes, 100% citation validity) plus request IDs and Prometheus metrics.
+- Production-minded auth: Keycloak OIDC, organization and business-unit scoping, and an append-only audit trail for approvals.
+
+**Run it:** `cd infra && docker compose up --build`, then open http://localhost:5173 and sign in as `demo-admin` / `DemoPass123!`.
 
 ## What it does
 
@@ -65,6 +66,19 @@ the underlying row.
 Acceptance status against the 13 criteria in [docs/intent.md](docs/intent.md)
 is tracked in [docs/acceptance-report.md](docs/acceptance-report.md), with
 evidence for each.
+
+## Screens
+
+![Dashboard](docs/screenshots/01-dashboard.png)
+
+| | |
+|---|---|
+| Investigation with citations | ![Cited answer](docs/screenshots/04-investigation-cited-answer.png) |
+| Follow-up resolved from the prior turn | ![Follow-up](docs/screenshots/05-investigation-follow-up.png) |
+| Evidence drill-down (stored record and linked rows) | ![Evidence](docs/screenshots/06-evidence-drill-down.png) |
+| Exception workbench (filter, sort, paginate, evidence) | ![Workbench](docs/screenshots/02-exception-workbench.png) |
+| Customer timeline (balances, aging, events) | ![Customer](docs/screenshots/03-customer-timeline.png) |
+| Admin: business units and users | ![Admin](docs/screenshots/07-admin.png) |
 
 ## Quick start (Docker)
 

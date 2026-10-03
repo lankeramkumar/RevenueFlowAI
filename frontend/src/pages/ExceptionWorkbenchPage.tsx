@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMe } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
+import { cellStyle, headerRowStyle, numericCellStyle, tableStyle } from "../ui/tableStyles";
 
 interface UnbilledShipment {
   shipment_external_id: string;
@@ -65,7 +66,7 @@ function SortableHeader<T>({
 }) {
   const active = sortKey === columnKey;
   return (
-    <th>
+    <th style={cellStyle}>
       <button
         type="button"
         onClick={() => onSort(columnKey)}
@@ -213,9 +214,9 @@ export function ExceptionWorkbenchPage() {
             }}
             aria-label="Filter unbilled shipments"
           />
-          <table>
+          <table style={tableStyle}>
             <thead>
-              <tr>
+              <tr style={headerRowStyle}>
                 <SortableHeader<UnbilledShipment>
                   label="Shipment" columnKey="shipment_external_id"
                   sortKey={shipmentSortKey} direction={shipmentSortDir} onSort={onSortShipments}
@@ -240,7 +241,7 @@ export function ExceptionWorkbenchPage() {
                   label="Evidence" columnKey="sufficient_evidence"
                   sortKey={shipmentSortKey} direction={shipmentSortDir} onSort={onSortShipments}
                 />
-                <th />
+                <th style={cellStyle} />
               </tr>
             </thead>
             <tbody>
@@ -248,14 +249,14 @@ export function ExceptionWorkbenchPage() {
                 const isExpanded = expandedShipmentId === row.shipment_line_external_id;
                 return (
                   <Fragment key={row.shipment_line_external_id}>
-                    <tr>
-                      <td>{row.shipment_external_id}</td>
-                      <td>{row.shipped_quantity}</td>
-                      <td>{row.billed_quantity}</td>
-                      <td>{row.unbilled_quantity}</td>
-                      <td>{row.estimated_value}</td>
-                      <td>{row.sufficient_evidence ? "sufficient" : "insufficient — not asserted"}</td>
-                      <td>
+                    <tr style={headerRowStyle}>
+                      <td style={cellStyle}>{row.shipment_external_id}</td>
+                      <td style={numericCellStyle}>{row.shipped_quantity}</td>
+                      <td style={numericCellStyle}>{row.billed_quantity}</td>
+                      <td style={numericCellStyle}>{row.unbilled_quantity}</td>
+                      <td style={numericCellStyle}>{row.estimated_value}</td>
+                      <td style={cellStyle}>{row.sufficient_evidence ? "sufficient" : "insufficient — not asserted"}</td>
+                      <td style={cellStyle}>
                         <button
                           type="button"
                           onClick={() =>
@@ -267,8 +268,8 @@ export function ExceptionWorkbenchPage() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr>
-                        <td colSpan={7}>
+                      <tr style={headerRowStyle}>
+                        <td style={cellStyle} colSpan={7}>
                           <dl style={{ display: "grid", gridTemplateColumns: "max-content auto", gap: "0.25rem 1rem" }}>
                             <dt>Shipment line</dt>
                             <dd>{row.shipment_line_external_id}</dd>
@@ -311,9 +312,9 @@ export function ExceptionWorkbenchPage() {
             }}
             aria-label="Filter order holds"
           />
-          <table>
+          <table style={tableStyle}>
             <thead>
-              <tr>
+              <tr style={headerRowStyle}>
                 <SortableHeader<OrderHoldRow>
                   label="Order" columnKey="order_external_id"
                   sortKey={holdSortKey} direction={holdSortDir} onSort={onSortHolds}
@@ -330,7 +331,7 @@ export function ExceptionWorkbenchPage() {
                   label="Linked invoice" columnKey="linked_invoice_id"
                   sortKey={holdSortKey} direction={holdSortDir} onSort={onSortHolds}
                 />
-                <th />
+                <th style={cellStyle} />
               </tr>
             </thead>
             <tbody>
@@ -338,12 +339,12 @@ export function ExceptionWorkbenchPage() {
                 const isExpanded = expandedHoldId === row.order_external_id;
                 return (
                   <Fragment key={row.order_external_id}>
-                    <tr>
-                      <td>{row.order_external_id}</td>
-                      <td>{row.hold_reason}</td>
-                      <td>{row.age_days}</td>
-                      <td>{row.linked_invoice_id ?? "— (no source link)"}</td>
-                      <td>
+                    <tr style={headerRowStyle}>
+                      <td style={cellStyle}>{row.order_external_id}</td>
+                      <td style={cellStyle}>{row.hold_reason}</td>
+                      <td style={numericCellStyle}>{row.age_days}</td>
+                      <td style={cellStyle}>{row.linked_invoice_id ?? "— (no source link)"}</td>
+                      <td style={cellStyle}>
                         <button
                           type="button"
                           onClick={() => setExpandedHoldId(isExpanded ? null : row.order_external_id)}
@@ -353,8 +354,8 @@ export function ExceptionWorkbenchPage() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr>
-                        <td colSpan={5}>
+                      <tr style={headerRowStyle}>
+                        <td style={cellStyle} colSpan={5}>
                           <dl style={{ display: "grid", gridTemplateColumns: "max-content auto", gap: "0.25rem 1rem" }}>
                             <dt>Order</dt>
                             <dd>{row.order_external_id}</dd>

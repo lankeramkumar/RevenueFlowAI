@@ -63,3 +63,18 @@ async def test_demo_seed_is_idempotent_by_admin_email():
 
     assert first.startswith("Seeded organization")
     assert second.startswith("Skipped")
+
+
+async def test_returning_user_with_a_new_keycloak_subject_is_relinked_by_verified_email(db_session):
+    email = f"relink-{uuid.uuid4().hex[:8]}@example.test"
+    await _provision(email, f"relink-{uuid.uuid4().hex[:8]}")
+    first_sub = f"kc-old-{uuid.uuid4().hex[:8]}"
+    second_sub = f"kc-new-{uuid.uuid4().hex[:8]}"
+
+    first = SimpleNamespace(subject=first_sub, email=email, email_verified=True)
+    await get_current_app_user(principal=first, session=db_session)
+
+    second = SimpleNamespace(subject=second_sub, email=email, email_verified=True)
+    user = await get_current_app_user(principal=second, session=db_session)
+
+    assert user.oidc_subject == second_sub
