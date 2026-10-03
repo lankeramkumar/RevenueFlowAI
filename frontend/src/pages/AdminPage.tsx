@@ -87,6 +87,7 @@ export function AdminPage() {
   return (
     <section>
       <h2>Administration</h2>
+      <p className="page-subtitle">Business units and users in your organization. Every change is written to the audit log.</p>
 
       <h3>Business Units</h3>
       {businessUnitsQuery.isLoading && <p>Loading…</p>}
@@ -105,7 +106,7 @@ export function AdminPage() {
       {usersQuery.isLoading && <p>Loading…</p>}
       {usersQuery.isError && <p role="alert">Could not load users.</p>}
       {usersQuery.data && (
-        <table>
+        <div className="card card--flush"><table>
           <thead>
             <tr>
               <th>Name</th>
@@ -152,7 +153,7 @@ export function AdminPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       <h3>Add a user</h3>
@@ -160,7 +161,7 @@ export function AdminPage() {
         Grants application-level access to an identity already authenticated by Keycloak —
         provide their Keycloak subject (<code>sub</code> claim), not a password.
       </p>
-      <form
+      <form className="card"
         onSubmit={(e) => {
           e.preventDefault();
           createUser.mutate();

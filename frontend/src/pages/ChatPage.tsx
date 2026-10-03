@@ -369,7 +369,7 @@ export function ChatPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 110px)", minHeight: 480, textAlign: "left", fontSize: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
         <div>
           <h2 style={{ margin: 0 }}>Investigate</h2>
           <p className="page-subtitle" style={{ margin: 0 }}>Every answer cites the stored records behind it. Demo and live modes share the same evidence.</p>

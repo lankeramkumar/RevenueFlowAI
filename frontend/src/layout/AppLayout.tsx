@@ -26,15 +26,20 @@ export function AppLayout() {
 
   if (!auth.isAuthenticated) {
     return (
-      <main style={{ fontFamily: "system-ui", padding: "2rem", maxWidth: 640 }}>
-        <h1>RevenueFlow AI</h1>
-        <p>
-          Backend health:{" "}
+      <main className="signin card" style={{ padding: "2rem" }}>
+        <h1 style={{ fontSize: "1.6rem", margin: "0 0 0.25rem" }}>RevenueFlow AI</h1>
+        <p style={{ color: "var(--ink-faint)", margin: "0 0 1.5rem" }}>
+          Order-to-cash exception investigation with cited answers.
+        </p>
+        <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>
+          Backend:{" "}
           {healthQuery.isLoading && "checking…"}
           {healthQuery.isError && <span role="alert">unreachable</span>}
-          {healthQuery.data && <span>{healthQuery.data.status}</span>}
+          {healthQuery.data && <span style={{ color: "var(--ok-ink)" }}>{healthQuery.data.status}</span>}
         </p>
-        <button onClick={() => auth.signinRedirect()}>Sign in with Keycloak</button>
+        <button type="submit" onClick={() => auth.signinRedirect()} style={{ width: "100%", padding: "0.6rem" }}>
+          Sign in with Keycloak
+        </button>
       </main>
     );
   }

@@ -61,9 +61,10 @@ export function TaskQueuePage() {
   return (
     <section>
       <h2>Follow-up Tasks</h2>
+      <p className="page-subtitle">Follow-ups raised from investigations, with their decision history.</p>
       <p>Approving or resolving a task records an internal decision only — it never posts cash, releases a hold, or sends an email.</p>
 
-      <form
+      <form className="card"
         onSubmit={(e) => {
           e.preventDefault();
           if (title.trim()) createMutation.mutate(title.trim());
@@ -81,7 +82,7 @@ export function TaskQueuePage() {
       {tasksQuery.isError && <p role="alert">Could not load tasks.</p>}
       {tasksQuery.data && tasksQuery.data.length === 0 && <p>No tasks yet.</p>}
       {tasksQuery.data && tasksQuery.data.length > 0 && (
-        <table>
+        <div className="card card--flush"><table>
           <thead>
             <tr>
               <th>Title</th>
@@ -110,7 +111,7 @@ export function TaskQueuePage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

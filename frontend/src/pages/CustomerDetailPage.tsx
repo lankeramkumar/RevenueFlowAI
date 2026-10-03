@@ -77,7 +77,8 @@ export function CustomerDetailPage() {
   return (
     <section>
       <h2>Customer Detail</h2>
-      <form onSubmit={onSearch} style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+      <p className="page-subtitle">Look up a customer by external ID to see balances, invoices, credit memos, and the event timeline.</p>
+      <form onSubmit={onSearch} className="card" style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
         <input
           type="text"
           placeholder="Customer external ID, e.g. S01-CUST"
@@ -109,7 +110,7 @@ export function CustomerDetailPage() {
           <h4>Invoices</h4>
           {query.data.invoices.length === 0 && <p>No invoices on record.</p>}
           {query.data.invoices.length > 0 && (
-            <table>
+            <div className="card card--flush"><table>
               <thead>
                 <tr>
                   <th>Invoice</th>
@@ -134,13 +135,13 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <h4>Credit memos</h4>
           {query.data.credit_memos.length === 0 && <p>No credit memos on record.</p>}
           {query.data.credit_memos.length > 0 && (
-            <table>
+            <div className="card card--flush"><table>
               <thead>
                 <tr>
                   <th>Credit memo</th>
@@ -159,7 +160,7 @@ export function CustomerDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
 
           <h4>Timeline</h4>

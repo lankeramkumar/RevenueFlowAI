@@ -248,7 +248,33 @@ code {
 
 .card--flush {
   padding: 0;
-  overflow: hidden;
+  overflow-x: auto;
+}
+
+.signin {
+  max-width: 420px;
+  margin: 12vh auto 0;
+}
+
+@media (max-width: 720px) {
+  .app-header {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .app-user {
+    margin-left: 0;
+  }
+
+  .app-main {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+  }
 }
 
 .badge {
@@ -277,4 +303,25 @@ code {
 
 [role="alert"] {
   color: var(--danger-ink);
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+label:has(> input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+label > input:not([type="checkbox"]),
+label > select,
+label > textarea {
+  width: 100%;
 }
