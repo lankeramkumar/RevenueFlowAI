@@ -67,10 +67,13 @@ def _get_planner(requested_mode: str) -> tuple[QuestionPlanner, str]:
     labeled honestly either way, never silently pretending demo is live.
     """
     settings = get_settings()
-    if requested_mode == "live" and settings.anthropic_api_key:
-        from revenueflowai.agents.providers.live import AnthropicQuestionPlanner
+    if requested_mode == "live":
+        from revenueflowai.agents.providers.live import AnthropicQuestionPlanner, BedrockQuestionPlanner
 
-        return AnthropicQuestionPlanner(settings.anthropic_api_key), "live"
+        if settings.live_planner_provider == "bedrock":
+            return BedrockQuestionPlanner(settings.aws_region), "live"
+        if settings.anthropic_api_key:
+            return AnthropicQuestionPlanner(settings.anthropic_api_key), "live"
     return DemoQuestionPlanner(), "demo"
 
 

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     s3_region: str = Field(default="us-east-1")
 
     anthropic_api_key: str | None = Field(default=None)
+    live_planner_provider: str = Field(default="anthropic")  # "anthropic" | "bedrock"
+    aws_region: str = Field(default="us-east-1")
 
     max_upload_bytes: int = Field(default=200 * 1024 * 1024)
 

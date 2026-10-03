@@ -86,7 +86,9 @@ async def _run(organization_id: UUID, business_unit_id: UUID, actor_user_id: UUI
                f"max={max(all_ms):.1f}ms")
     for screen, series in timings.items():
         if series:
-            typer.echo(f"  {screen.split('?')[0]:<55} n={len(series):<4} p50={statistics.median(series):7.1f}ms "
+            typer.echo(
+                f"  {screen.split('?')[0]:<55} n={len(series):<4} "
+                f"p50={statistics.median(series):7.1f}ms "
                        f"p95={_percentile(series, 95):7.1f}ms")
     target_met = _percentile(all_ms, 95) < 2000 and errors == 0
     typer.echo(f"target (p95 < 2000 ms, no errors): {'MET' if target_met else 'NOT MET'}")
@@ -100,7 +102,9 @@ def run(
     users: int = typer.Option(10),
     requests_per_user: int = typer.Option(30),
 ) -> None:
-    asyncio.run(_run(UUID(organization_id), UUID(business_unit_id), UUID(actor_user_id), users, requests_per_user))
+    asyncio.run(
+        _run(UUID(organization_id), UUID(business_unit_id), UUID(actor_user_id), users, requests_per_user)
+    )
 
 
 if __name__ == "__main__":

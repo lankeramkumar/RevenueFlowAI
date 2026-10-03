@@ -67,12 +67,17 @@ async def _run(
         planner: QuestionPlanner
         mode = "demo"
         if live:
-            settings = get_settings()
-            if not settings.anthropic_api_key:
-                raise typer.BadParameter("--live requires ANTHROPIC_API_KEY.")
-            from revenueflowai.agents.providers.live import AnthropicQuestionPlanner
+            from revenueflowai.agents.providers.live import AnthropicQuestionPlanner, BedrockQuestionPlanner
 
-            planner = AnthropicQuestionPlanner(settings.anthropic_api_key)
+            settings = get_settings()
+            if settings.live_planner_provider == "bedrock":
+                planner = BedrockQuestionPlanner(settings.aws_region)
+            elif settings.anthropic_api_key:
+                planner = AnthropicQuestionPlanner(settings.anthropic_api_key)
+            else:
+                raise typer.BadParameter(
+                    "--live requires ANTHROPIC_API_KEY, or LIVE_PLANNER_PROVIDER=bedrock."
+                )
             mode = "live"
         else:
             planner = DemoQuestionPlanner()
