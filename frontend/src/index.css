@@ -325,3 +325,111 @@ label > select,
 label > textarea {
   width: 100%;
 }
+
+/* Landing page (signed out) */
+.landing {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+.landing__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.landing__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 3rem 1rem 2rem;
+}
+.landing__hero h1 {
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+  margin: 0 0 0.75rem;
+  max-width: 720px;
+}
+.landing__hero p {
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  max-width: 680px;
+}
+.landing__status {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+.landing__ok {
+  color: var(--ok-ink);
+}
+.landing__features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 2.5rem 0 1.5rem;
+}
+.landing__features h3 {
+  margin: 0 0 0.35rem;
+}
+.landing__features p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.landing__help {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+/* Footer */
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 13px;
+  background: var(--surface);
+}
+
+/* Help page */
+.help {
+  max-width: 860px;
+}
+.help-start ol,
+.help-screen ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+.help-screen {
+  margin-bottom: 1rem;
+}
+.help-screen__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.help-screen__head h3 {
+  margin: 0;
+}
+.help-screen p,
+.help-faq p {
+  color: var(--ink-soft);
+  margin: 0.4rem 0 0;
+}
+.help-screen li {
+  margin-bottom: 4px;
+}
+.help-faq {
+  margin-bottom: 0.75rem;
+}
+.help-note {
+  font-size: 13px;
+  color: var(--ink-faint);
+}

@@ -4,6 +4,19 @@ import { NavLink, Outlet } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { MeContext, type MeResponse } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
+import { ISSUES_URL, REPO_URL } from "../ui/contact";
+
+function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <span>RevenueFlow AI · synthetic data demo</span>
+      <span>
+        <a href="/help">Help</a> · <a href={ISSUES_URL} target="_blank" rel="noreferrer">Contact</a> ·{" "}
+        <a href={REPO_URL} target="_blank" rel="noreferrer">Source</a>
+      </span>
+    </footer>
+  );
+}
 
 /** Signs the user in, loads /me, and renders the nav + routed page once ready. */
 export function AppLayout() {
@@ -26,21 +39,51 @@ export function AppLayout() {
 
   if (!auth.isAuthenticated) {
     return (
-      <main className="signin card" style={{ padding: "2rem" }}>
-        <h1 style={{ fontSize: "1.6rem", margin: "0 0 0.25rem" }}>RevenueFlow AI</h1>
-        <p style={{ color: "var(--ink-faint)", margin: "0 0 1.5rem" }}>
-          Order-to-cash exception investigation with cited answers.
-        </p>
-        <p style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-          Backend:{" "}
-          {healthQuery.isLoading && "checking…"}
-          {healthQuery.isError && <span role="alert">unreachable</span>}
-          {healthQuery.data && <span style={{ color: "var(--ok-ink)" }}>{healthQuery.data.status}</span>}
-        </p>
-        <button type="submit" onClick={() => auth.signinRedirect()} style={{ width: "100%", padding: "0.6rem" }}>
-          Sign in with Keycloak
-        </button>
-      </main>
+      <div className="landing">
+        <header className="landing__top">
+          <span className="app-brand">RevenueFlow AI</span>
+          <button type="button" onClick={() => auth.signinRedirect()}>Sign in</button>
+        </header>
+        <main className="landing__main">
+          <section className="landing__hero">
+            <h1>Find where billing and cash are blocked, and see the evidence.</h1>
+            <p>
+              RevenueFlow AI checks order-to-cash data for unbilled shipments, order holds, overdue invoices, and
+              unmatched receipts. Every answer cites the records it is based on.
+            </p>
+            <button type="button" onClick={() => auth.signinRedirect()}>Sign in to continue</button>
+            <p className="landing__status">
+              Service status:{" "}
+              {healthQuery.isLoading && "checking…"}
+              {healthQuery.isError && <span role="alert">unreachable</span>}
+              {healthQuery.data && <span className="landing__ok">{healthQuery.data.status}</span>}
+            </p>
+          </section>
+          <section className="landing__features" aria-label="What you can do">
+            <div className="card">
+              <h3>Dashboard</h3>
+              <p>Invoice aging by currency, with the as-of date.</p>
+            </div>
+            <div className="card">
+              <h3>Investigate</h3>
+              <p>Ask a question in plain English and check each cited record.</p>
+            </div>
+            <div className="card">
+              <h3>Exceptions</h3>
+              <p>Unbilled shipments and active order holds, with evidence for each row.</p>
+            </div>
+            <div className="card">
+              <h3>Customers and Documents</h3>
+              <p>One customer's full picture, and source documents that answers can cite.</p>
+            </div>
+          </section>
+          <p className="landing__help">
+            New here? Sign in, then open <strong>Help</strong> for a guide to every screen, or see the contact
+            details there.
+          </p>
+        </main>
+        <SiteFooter />
+      </div>
     );
   }
 
@@ -70,6 +113,7 @@ export function AppLayout() {
             <NavLink to="/documents">Documents</NavLink>
             {me.role === "admin" && <NavLink to="/imports">Import</NavLink>}
             {me.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
+            <NavLink to="/help">Help</NavLink>
           </nav>
           <span className="app-user">
             {me.display_name} · {me.role}
@@ -79,6 +123,7 @@ export function AppLayout() {
         <main className="app-main">
           <Outlet />
         </main>
+        <SiteFooter />
       </div>
     </MeContext.Provider>
   );
