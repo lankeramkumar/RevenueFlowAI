@@ -8,7 +8,7 @@ and each citation opens to the underlying row.
 
 [![Watch the 60-second walkthrough](docs/demo/poster.png)](docs/demo/walkthrough.mp4)
 
-*60-second walkthrough: an investigation with citations, a follow-up, and the evidence drawer.*
+*60-second walkthrough: exceptions with evidence, a cited investigation with a follow-up, the evidence drawer, and a customer timeline.*
 
 **Highlights**
 
@@ -54,7 +54,7 @@ and each citation opens to the underlying row.
 
 | Check | Result |
 |---|---|
-| Backend tests (unit and integration against Postgres 16) | 148 passed, none skipped |
+| Backend tests (unit and integration against Postgres 16) | 149 passed, none skipped |
 | Backend lint and types (`ruff`, `mypy`) | clean |
 | Frontend (`oxlint`, `tsc`, production build) | clean |
 | CI steps replayed in clean Python 3.12 and Node 22 containers | pass |
