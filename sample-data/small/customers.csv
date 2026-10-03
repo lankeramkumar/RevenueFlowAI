@@ -1,3 +1,17 @@
 customer_id,account_number,customer_name,payment_terms_days
 S01-CUST,ACC-S01,Scenario S01 Co,30
+S02-CUST,ACC-S02,Scenario S02 Co,30
+S03-CUST,ACC-S03,Scenario S03 Co,30
+S04-CUST,ACC-S04,Scenario S04 Co,30
+S05-CUST,ACC-S05,Scenario S05 Co,30
+S06-CUST,ACC-S06,Scenario S06 Co,30
+S07-CUST,ACC-S07,Scenario S07 Co,30
+S08-CUST,ACC-S08,Scenario S08 Co,30
 S09-CUST,ACC-S09,Scenario S09 Co,30
+S10-CUST,ACC-S10,Scenario S10 Co,30
+S11-CUST,ACC-S11,Scenario S11 Co,30
+S12-CUST,ACC-S12,Scenario S12 Co,30
+S13-CUST,ACC-S13,Scenario S13 Co,30
+S14-CUST,ACC-S14,Scenario S14 Co,30
+S16-CUST,ACC-S16,Scenario S16 Co,30
+S17-CUST,ACC-S17,Scenario S17 Co,30

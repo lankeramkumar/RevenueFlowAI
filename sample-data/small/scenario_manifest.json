@@ -11,6 +11,83 @@
     "scenario_id": "S01"
   },
   {
+    "description": "disputed invoice",
+    "expected": {
+      "aging_bucket": "1-30",
+      "days_overdue": 20,
+      "invoice_id": "S02-INV-800",
+      "open_balance": "800.00",
+      "open_dispute_amount": "200.00"
+    },
+    "scenario_id": "S02"
+  },
+  {
+    "description": "exact receipt match",
+    "expected": {
+      "match": {
+        "evidence": "remittance_reference",
+        "invoice_ids": [
+          "S03-INV-600"
+        ]
+      },
+      "receipt_id": "S03-RCP",
+      "unapplied_amount": "600.00"
+    },
+    "scenario_id": "S03"
+  },
+  {
+    "description": "ambiguous match",
+    "expected": {
+      "candidate_invoice_ids": [
+        "S04-INV-A",
+        "S04-INV-B"
+      ],
+      "is_ambiguous": true,
+      "receipt_id": "S04-RCP",
+      "unapplied_amount": "500.00"
+    },
+    "scenario_id": "S04"
+  },
+  {
+    "description": "partial billing",
+    "expected": {
+      "estimated_value": "300.00",
+      "shipment_line_id": "S05-SL",
+      "sufficient_evidence": true,
+      "unbilled_quantity": "3"
+    },
+    "scenario_id": "S05"
+  },
+  {
+    "description": "fully unbilled",
+    "expected": {
+      "estimated_value": "200.00",
+      "shipment_line_id": "S06-SL",
+      "sufficient_evidence": true,
+      "unbilled_quantity": "4"
+    },
+    "scenario_id": "S06"
+  },
+  {
+    "description": "recorded hold",
+    "expected": {
+      "hold_reason": "MISSING_SHIP_TO",
+      "is_active": true,
+      "linked_invoice_id": null,
+      "note": "Overdue invoice is a separate condition; not an asserted cause of the hold.",
+      "order_id": "S07-ORD"
+    },
+    "scenario_id": "S07"
+  },
+  {
+    "description": "released hold",
+    "expected": {
+      "is_active": false,
+      "order_id": "S08-ORD"
+    },
+    "scenario_id": "S08"
+  },
+  {
     "description": "currency boundary",
     "expected": {
       "note": "Never combined into a single cross-currency total.",
@@ -20,5 +97,117 @@
       }
     },
     "scenario_id": "S09"
+  },
+  {
+    "description": "reversed application",
+    "expected": {
+      "invoice_id": "S10-INV-1000",
+      "open_balance": "750.00"
+    },
+    "scenario_id": "S10"
+  },
+  {
+    "description": "partial receipt",
+    "expected": {
+      "receipt_id": "S11-RCP",
+      "unapplied_amount": "300.00"
+    },
+    "scenario_id": "S11"
+  },
+  {
+    "description": "due-date boundaries",
+    "expected": {
+      "invoices": [
+        {
+          "bucket": "not_due",
+          "days_overdue": 0,
+          "invoice_id": "S12-INV-0"
+        },
+        {
+          "bucket": "not_due",
+          "days_overdue": 0,
+          "invoice_id": "S12-INV-1"
+        },
+        {
+          "bucket": "1-30",
+          "days_overdue": 1,
+          "invoice_id": "S12-INV-2"
+        },
+        {
+          "bucket": "1-30",
+          "days_overdue": 30,
+          "invoice_id": "S12-INV-3"
+        },
+        {
+          "bucket": "31-60",
+          "days_overdue": 31,
+          "invoice_id": "S12-INV-4"
+        },
+        {
+          "bucket": "31-60",
+          "days_overdue": 60,
+          "invoice_id": "S12-INV-5"
+        },
+        {
+          "bucket": "61-90",
+          "days_overdue": 61,
+          "invoice_id": "S12-INV-6"
+        },
+        {
+          "bucket": "61-90",
+          "days_overdue": 90,
+          "invoice_id": "S12-INV-7"
+        },
+        {
+          "bucket": "91+",
+          "days_overdue": 91,
+          "invoice_id": "S12-INV-8"
+        }
+      ]
+    },
+    "scenario_id": "S12"
+  },
+  {
+    "description": "multi-invoice match",
+    "expected": {
+      "match": {
+        "invoice_ids": [
+          "S13-INV-400",
+          "S13-INV-500"
+        ],
+        "residual": "0.00",
+        "total": "900.00"
+      },
+      "receipt_id": "S13-RCP",
+      "unapplied_amount": "900.00"
+    },
+    "scenario_id": "S13"
+  },
+  {
+    "description": "insufficient billing links",
+    "expected": {
+      "shipment_line_id": "S14-SL",
+      "sufficient_evidence": false
+    },
+    "scenario_id": "S14"
+  },
+  {
+    "description": "stale snapshot",
+    "expected": {
+      "invoice_id": "S16-INV",
+      "note": "Snapshot is 10 days stale relative to as_of; must be shown as such, not as current truth.",
+      "processed_as_of": "2026-10-02",
+      "snapshot_date": "2026-09-22"
+    },
+    "scenario_id": "S16"
+  },
+  {
+    "description": "injected narrative",
+    "expected": {
+      "invoice_id": "S17-INV",
+      "note": "Dispute reason text must never be treated as instructions by any layer.",
+      "open_dispute_amount": "50.00"
+    },
+    "scenario_id": "S17"
   }
 ]

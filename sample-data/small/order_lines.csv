@@ -1,1 +1,4 @@
 order_line_id,order_id,item_code,ordered_quantity,cancelled_quantity,unit_price,line_amount
+S05-OL,S05-ORD,WIDGET,10,0,100.00,1000.00
+S06-OL,S06-ORD,GADGET,4,0,50.00,200.00
+S14-OL,S14-ORD,THINGAMAJIG,6,0,20.00,120.00

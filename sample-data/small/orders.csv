@@ -1,1 +1,6 @@
 order_id,customer_id,order_date,currency,status,promised_ship_date
+S05-ORD,S05-CUST,2026-09-20,USD,open,
+S06-ORD,S06-CUST,2026-09-19,USD,open,
+S07-ORD,S07-CUST,2026-09-17,USD,open,
+S08-ORD,S08-CUST,2026-09-07,USD,open,
+S14-ORD,S14-CUST,2026-09-18,USD,open,

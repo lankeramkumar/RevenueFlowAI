@@ -1,1 +1,4 @@
 shipment_line_id,shipment_id,order_line_id,shipped_quantity
+S05-SL,S05-SHP,S05-OL,8
+S06-SL,S06-SHP,S06-OL,4
+S14-SL,S14-SHP,,6

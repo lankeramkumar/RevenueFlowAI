@@ -1,1 +1,3 @@
 hold_id,order_id,hold_reason,status,applied_date,released_date,linked_invoice_id
+S07-HOLD,S07-ORD,MISSING_SHIP_TO,active,2026-09-22,,
+S08-HOLD,S08-ORD,CREDIT_LIMIT,released,2026-09-12,2026-10-01,

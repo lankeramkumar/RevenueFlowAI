@@ -55,7 +55,7 @@ async def test_valid_bundle_activates_and_loads_rows(db_session, tenant, tmp_pat
     assert outcome.dataset_version is not None
     assert outcome.dataset_version.is_active is True
     assert job.status == "activated"
-    assert outcome.row_counts["invoices.csv"] == 3  # S01 + S09 (2 invoices)
+    assert outcome.row_counts["invoices.csv"] == 24  # sum of invoices across all 16 implemented scenarios
 
     invoice_count = (
         await db_session.execute(
@@ -64,7 +64,7 @@ async def test_valid_bundle_activates_and_loads_rows(db_session, tenant, tmp_pat
             .where(Invoice.dataset_version_id == outcome.dataset_version.id)
         )
     ).scalar_one()
-    assert invoice_count == 3
+    assert invoice_count == 24
 
     s01_invoice = (
         await db_session.execute(

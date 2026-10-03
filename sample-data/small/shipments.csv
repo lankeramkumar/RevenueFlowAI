@@ -1,1 +1,4 @@
 shipment_id,order_id,shipment_date,status,delivery_date
+S05-SHP,S05-ORD,2026-09-25,shipped,
+S06-SHP,S06-ORD,2026-09-24,shipped,
+S14-SHP,S14-ORD,2026-09-23,shipped,

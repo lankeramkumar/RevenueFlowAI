@@ -1,2 +1,5 @@
 application_id,receipt_id,invoice_id,applied_amount,application_date,status
 S01-APP-1,S01-RCP,S01-INV-1000,300.00,2026-08-18,posted
+S10-APP-1,S10-RCP-1,S10-INV-1000,250.00,2026-09-20,posted
+S10-APP-2,S10-RCP-2,S10-INV-1000,100.00,2026-09-20,reversed
+S11-APP,S11-RCP,S11-INV,700.00,2026-09-30,posted
