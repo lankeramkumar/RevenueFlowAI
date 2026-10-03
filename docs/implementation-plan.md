@@ -174,10 +174,10 @@ be protected. Fixed across all 12 affected columns.
 | Dashboard (aging) | ✅ done (Milestone 3) |
 | Exception workbench (unbilled shipments + active holds tables) | ✅ **verified live**: real empty-state rendering confirmed against the current dataset (which has no shipment/hold data — only S01/S09); API wiring identical to the proven dashboard pattern |
 | Import screen | ✅ done (previous commit) |
-| Exception workbench: filters, sort, pagination, priority explanations, evidence drawers | 🔲 not started — current version is an unfiltered real-data table, not the full spec |
-| Customer detail / timeline | 🔲 not started |
+| Exception workbench: filters, sort, pagination, priority explanations, evidence drawers | ✅ done — client-side filter/sort/pagination plus a per-row evidence drawer added to both tables in `ExceptionWorkbenchPage.tsx`, over the same real rows already returned by the shipment/holds services. Not yet verified live in a browser this session (no Docker Desktop available); verified via `tsc`/lint/build. Priority *explanations* (as opposed to filtering/sorting) are still not built |
+| Customer detail / timeline | ✅ done — `domain/customer_service.py` computes a real per-customer view (orders/invoices with balance+aging/receipts/credit memos/disputes/holds) merged into one timeline; `GET /api/v1/customers/{id}`; `CustomerDetailPage.tsx` (lookup-by-ID, no customer-list endpoint exists yet). 3 integration tests against live Postgres, including an S01 hand-calculation match |
 | Action/task queue (create, assign, approve/reject/resolve, comments, audit) | ✅ **verified live end-to-end**: created a real task through the browser UI, approved it (role-gated to admin/approver via `DECISION_ROLES`), and confirmed both `task.created` and `task.transitioned` rows landed in the real `audit_events` table in Postgres — this also closes the "audit event writing" gap the acceptance report flagged. Backed by `models/tasks.py` (new migration `e85aa0753f3f`), `api/tasks.py`, `frontend/src/pages/TaskQueuePage.tsx`. Assignment UI and per-task comment thread UI are not built yet (API supports comments; no screen for them) |
-| Administration screens (scopes, thresholds, currencies, retention, provider status) | 🔲 not started |
+| Administration screens | ⚠️ **partially done** — business-unit listing and app-user management (create/role-change/deactivate/business-unit grants) built via `api/admin.py` (admin-only, every write audited) + `AdminPage.tsx`; 7 integration tests against the real FastAPI app with dependency overrides. This automates the manual-SQL app-user-bootstrap step. Org-level config (scopes/thresholds/currencies/retention/provider status) is still not started — narrower scope than originally listed here |
 
 ### 5. Investigation — core built and verified live
 
@@ -236,7 +236,10 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
   3 passing integration tests against live Postgres). Neither has been
   verified live in a browser this session (no Docker Desktop available);
   verified via `tsc --noEmit`, lint, `npm run build`, and backend
-  integration tests instead. Administration screens remain unbuilt.
+  integration tests instead. User/business-unit admin management
+  (`api/admin.py` + `AdminPage.tsx`, 7 integration tests) was added too;
+  org-level config screens (thresholds/currencies/retention/provider
+  status) remain unbuilt.
 - Observability (correlation IDs, metrics export) is minimal (basic
   `structlog` usage only).
 

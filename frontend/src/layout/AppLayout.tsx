@@ -63,6 +63,7 @@ export function AppLayout() {
             <Link to="/customers">Customers</Link>
             <Link to="/tasks">Tasks</Link>
             {me.role === "admin" && <Link to="/imports">Import</Link>}
+            {me.role === "admin" && <Link to="/admin">Admin</Link>}
           </nav>
           <span style={{ marginLeft: "auto" }}>
             {me.display_name} ({me.role})

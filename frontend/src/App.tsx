@@ -3,6 +3,7 @@ import { AuthProvider } from "react-oidc-context";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { oidcConfig } from "./auth/oidcConfig";
 import { AppLayout } from "./layout/AppLayout";
+import { AdminPage } from "./pages/AdminPage";
 import { ChatPage } from "./pages/ChatPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="customers/:customerId" element={<CustomerDetailPage />} />
               <Route path="tasks" element={<TaskQueuePage />} />
               <Route path="imports" element={<ImportPage />} />
+              <Route path="admin" element={<AdminPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

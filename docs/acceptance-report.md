@@ -36,7 +36,7 @@ is listed as a gap below.
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
 | 1 | Clean checkout starts via Compose, migrates, demo login | ✅ **Met** | `docker compose up --build` brings up all 5 services healthy; Alembic migration applies automatically; real browser login completed as demo-admin (screenshot-confirmed) |
-| 2 | All primary UI routes operate against persisted backend data; no mock-only dashboard | ⚠️ **Partially met** | Six real routes now exist (dashboard, chat/investigate, exception workbench, task queue, CSV import, customer detail/timeline), all against real data, nothing mocked. The exception workbench now has client-side filter/sort/pagination and per-row evidence drawers over its real rows; the new customer detail screen is backed by a real SQL-wrapped domain service (`domain/customer_service.py`, 3 passing integration tests against live Postgres, including an S01 hand-calculation match). **Not yet verified live in a browser** (no Docker Desktop available in this work session to boot the stack) — verified via `tsc`/lint/build only for the frontend, and via live-Postgres integration tests for the backend. Still missing: administration screens |
+| 2 | All primary UI routes operate against persisted backend data; no mock-only dashboard | ⚠️ **Partially met** | Seven real routes now exist (dashboard, chat/investigate, exception workbench, task queue, CSV import, customer detail/timeline, admin), all against real data, nothing mocked. The exception workbench now has client-side filter/sort/pagination and per-row evidence drawers over its real rows; the customer detail screen is backed by a real SQL-wrapped domain service (`domain/customer_service.py`, 3 passing integration tests against live Postgres, including an S01 hand-calculation match). The new admin screen covers business-unit listing and app-user management (create/role-change/deactivate/business-unit grants) via `/api/v1/admin/*` (7 passing integration tests through the real FastAPI app with dependency overrides) — this automates what was previously a manual SQL step after first boot. **Not yet built**: org-level config screens (thresholds, currencies, retention, provider status) that `docs/implementation-plan.md` originally scoped for "administration." **Not yet verified live in a browser** (no Docker Desktop available in this work session to boot the stack) — verified via `tsc`/lint/build only for the frontend, and via live-Postgres integration tests for the backend |
 | 3 | Valid imports selectable; invalid bundles never corrupt active data; idempotent; worker recovers | ✅ **Met** | Activation, idempotency, and atomic rejection verified against live Postgres (unit + integration tests + a real upload through the running stack). Worker crash recovery verified by 3 integration tests against the real `claim_next_job` query — and finding a real bug in the process: a crashed job was getting permanently stuck at `status='staging'` since the reclaim query only matched `status='queued'`, now fixed |
 | 4 | Hand-calculated fixtures match domain outputs exactly; currency totals separate | ⚠️ **Partially met** | Verified for the `small` profile's 2 implemented scenarios (S01, S09) via both pure-function tests and a live SQL-backed dashboard query. 15 of 17 scenarios (S02–S08, S10–S17) have pure-function unit coverage but no corresponding generator fixture or SQL-service verification yet. Only the aging-balance domain service has a SQL wrapper; unbilled-shipment, receipt-matching, and holds do not yet |
 | 5 | All five example questions work in demo and live mode | ⚠️ **Partially met** | All five question *patterns* work in demo mode and were verified live with real answers and specialist attribution (unbilled shipments, invoice overdue/dispute, receipt match, order hold, customer summary). Live mode verified with genuinely free-form phrasing a regex could not match, correctly classified by a real Anthropic call. Not yet done: "actual source references" is partial — some findings carry `EvidenceReference`s, others (aging/customer-summary metrics) don't yet; honest missing-data behavior is confirmed (Order specialist declines to fabricate a customer-scoped holds answer it has no tool for) |
@@ -90,9 +90,12 @@ test, log, query result, or screenshot behind it, cross-referenced in
 - SSE streaming/progress events for chat (current endpoint is synchronous
   request/response); cancellation; budget-exhaustion behavior.
 - Document evidence upload/retrieval (TXT/PDF).
-- ~~Customer detail/timeline screen~~ and ~~exception workbench
-  filters/sort/pagination/evidence-drawers~~ — both now built (see
-  criterion #2). Administration screens are still not started.
+- ~~Customer detail/timeline screen~~, ~~exception workbench
+  filters/sort/pagination/evidence-drawers~~, and user/business-unit
+  admin management — all now built (see criterion #2). Org-level config
+  screens (thresholds, currencies, retention, provider status) remain
+  unbuilt — a narrower, lower-priority gap than the user-management
+  piece that existed before.
 - ~~`load` synthetic data profile~~ — now implemented and performance-measured (see `docs/evaluation.md`); all four profiles (`small`, `invalid`, `demo`, `load`) exist.
 - Full authorization test matrix (cross-org/cross-BU denial tests at the
   domain-service layer exist; not yet repeated through the chat/API layer
@@ -105,8 +108,12 @@ test, log, query result, or screenshot behind it, cross-referenced in
 - Observability (structured logs beyond basic `structlog` usage,
   correlation IDs, metrics).
 - Paginated-screen latency measurement (p95 under 2s at 10 concurrent users) — the import-throughput half of the performance target is now measured and passing (see docs/evaluation.md).
-- Automated bootstrap for organization/business-unit/app-user seeding
-  (currently a manual SQL step after first boot).
+- ~~Automated bootstrap for organization/business-unit/app-user
+  seeding~~ — app-user creation/role/grant management is now a real admin
+  UI screen (`/api/v1/admin/users`); creating the *first* organization and
+  business unit for a brand-new tenant is still a manual SQL step (there's
+  no "create organization" endpoint yet, since every admin endpoint is
+  itself scoped to an existing `app_user.organization_id`).
 
 ## Production readiness gates (per intent.md's own requirement to list these)
 
