@@ -30,6 +30,7 @@ from revenueflowai.config import get_settings
 from revenueflowai.db import get_session
 from revenueflowai.domain.services import get_active_dataset_version
 from revenueflowai.models.chat import ChatMessage, Conversation
+from revenueflowai.models.documents import Document
 from revenueflowai.models.tenancy import AppUser
 from revenueflowai.observability import registry
 
@@ -205,6 +206,10 @@ async def _investigate_core(
         )
         for f in result.findings
     ]
+    document_findings = await _documents_mentioning(
+        session, app_user.organization_id, body.business_unit_id, result.entities
+    )
+    findings.extend(document_findings)
     metrics = [
         MetricOut(name=m.name, value=m.value, unit_or_currency=m.unit_or_currency,
                   calculation_provenance=m.calculation_provenance)
@@ -212,6 +217,7 @@ async def _investigate_core(
     ]
     evidence = [EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
                 for e in result.evidence]
+    evidence.extend(d.evidence[0] for d in document_findings)
     specialist_status = [
         SpecialistStatusOut(domain=s.domain, status=s.status, unavailable_reason=s.unavailable_reason)
         for s in result.specialist_status
@@ -353,3 +359,31 @@ async def investigate_stream(
                 task.cancel()
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+
+
+async def _documents_mentioning(
+    session: AsyncSession, organization_id: UUID, business_unit_id: UUID, entities: dict[str, str],
+) -> list[FindingOut]:
+    """Cites uploaded documents whose text contains a record ID this
+    investigation resolved. Deterministic substring matching; no model reads
+    the documents.
+    """
+    needles = {v for v in entities.values() if len(v) >= 4}
+    if not needles:
+        return []
+    docs = (await session.execute(
+        select(Document).where(
+            Document.organization_id == organization_id,
+            Document.business_unit_id == business_unit_id,
+        )
+    )).scalars().all()
+    findings: list[FindingOut] = []
+    for doc in docs:
+        hits = sorted(n for n in needles if n in doc.extracted_text)
+        if not hits:
+            continue
+        findings.append(FindingOut(
+            statement=f"Document '{doc.filename}' mentions {', '.join(hits)}.",
+            evidence=[EvidenceOut(source_type="document", record_type="document", record_id=str(doc.id))],
+        ))
+    return findings

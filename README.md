@@ -209,7 +209,7 @@ This is a working vertical slice, not a production deployment. In particular:
 - Aggregate aging figures cite the invoices behind them. Live-mode evals were measured in one run.
 - The Keycloak realm is a development realm with demo users and a dev-mode issuer.
 - No independent security review, rate limiting, HTTPS setup, or backup restore drill has been done.
-- Paginated-screen latency has not been measured under concurrent load.
+- Paginated-screen latency was measured locally (p95 1.05 s at 10 users, see docs/evaluation.md), not on production hardware.
 
 ## Troubleshooting
 

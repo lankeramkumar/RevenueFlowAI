@@ -161,3 +161,31 @@ they spend tokens).
   Labels use route templates, not raw paths, so cardinality stays bounded.
 - The worker has its own process and does not yet export metrics; job-level
   metrics are a gap.
+
+## Paginated-screen latency (local, 2026-10-03)
+
+`backend/scripts/load_check.py`: 10 concurrent users, 30 requests each (300 total),
+rotating through the aging summary, order holds, unbilled shipments, a customer
+timeline, and the task queue. Demo dataset, live Postgres 16 in Docker on the
+build machine (Windows, WSL2). Measured in process, so network, identity
+provider, and TLS are excluded.
+
+| Result | Value |
+|---|---|
+| Requests / errors | 300 / 0 (non-2xx counts as an error) |
+| Throughput | 21.5 req/s |
+| Overall p50 / p95 / max | 410 ms / 1,050 ms / 1,657 ms |
+| Target (p95 < 2 s, 10 users) | Met locally, not measured on production hardware |
+
+Per screen, p95: aging summary 921 ms (slowest median, about 400 ms, because it
+loads every open invoice and receipt per request), unbilled shipments 1,074 ms,
+customer timeline 1,102 ms, order holds 661 ms, tasks 503 ms. The aging query is
+the first optimization target if these numbers need to improve.
+
+## Backup and restore drill (local, 2026-10-03)
+
+`infra/scripts/restore-drill.sh` dumps the live database (`pg_dump -Fc`), restores it
+into a scratch database, compares row counts for all 27 public tables, and drops the
+scratch database. Result: restore drill passed, 27 tables matched. This is a drill on
+the development database only; the production drill (retention, off-site copy,
+restore time objective) is still open.
