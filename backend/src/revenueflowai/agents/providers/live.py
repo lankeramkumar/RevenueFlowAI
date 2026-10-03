@@ -12,6 +12,7 @@ bounded classification, not a full open-ended tool-calling loop.
 from typing import Any
 
 import anthropic
+import structlog
 
 from revenueflowai.agents.providers.base import (
     InvestigationPlan,
@@ -21,7 +22,7 @@ from revenueflowai.agents.providers.base import (
 )
 
 PLANNER_MODEL = "claude-haiku-4-5-20251001"
-BEDROCK_PLANNER_MODEL = "anthropic.claude-haiku-4-5-20251001-v1:0"
+BEDROCK_PLANNER_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # cross-region inference profile
 PLAN_TOOL_NAME = "submit_investigation_plan"
 
 _PLAN_TOOL = {
@@ -182,7 +183,10 @@ class BedrockQuestionPlanner(QuestionPlanner):
         }
         try:
             response = await asyncio.to_thread(self._client.converse, **request)
-        except (BotoCoreError, ClientError):
+        except (BotoCoreError, ClientError) as exc:
+            structlog.get_logger("planner").warning(
+                "planner.bedrock_failed", error=type(exc).__name__, detail=str(exc)[:300]
+            )
             return InvestigationPlan(dispatches=(), entities={}, label="live_provider_error")
 
         blocks = response.get("output", {}).get("message", {}).get("content", [])

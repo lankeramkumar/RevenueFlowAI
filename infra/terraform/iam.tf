@@ -51,7 +51,7 @@ resource "aws_iam_role_policy" "task" {
         Effect = "Allow"
         Action = ["bedrock:InvokeModel", "bedrock:Converse"]
         Resource = [
-          "arn:aws:bedrock:${var.region}::foundation-model/anthropic.*",
+          "arn:aws:bedrock:*::foundation-model/anthropic.*",
           "arn:aws:bedrock:${var.region}:${data.aws_caller_identity.current.account_id}:inference-profile/*",
         ]
       },
