@@ -90,7 +90,10 @@ alongside the first real import job.
 | CSV template downloads (`GET /api/v1/templates`, `/{filename}`) | ✅ done — header-only CSVs generated from the same `ingestion/manifest.py` source of truth the validator uses, so a filled-in template always passes schema checks |
 | Import UI (file picker, snapshot date, upload, poll status, show validation errors) | ✅ built and rendering correctly in the live browser session (`frontend/src/pages/ImportPage.tsx`), wired to the exact same `/api/v1/imports` endpoint already proven by the curl-based upload test — ⚠️ the actual click-and-select-a-file interaction is **not** verified by browser automation here: this tool cannot programmatically attach a local file to an `<input type=file>` (browsers block that for security). A human should click through it once; everything it calls has independently been proven to work. |
 | Activation history (list of past import jobs, rollback) | 🔲 not started |
-| Full `demo`/`invalid` generator profiles | 🔲 not started — `small` profile (S01, S09) remains the only one implemented |
+| `small` profile: 16 of 17 fixed scenarios | ✅ done (S01–S14, S16–S17; S15 is a direct cross-org test instead, not a generator scenario) |
+| `invalid` profile: 9 deliberate-defect fixtures | ✅ done — 2 new validator checks added (`excessive_precision`, `invalid_date`) plus a new `mismatched_application_currency` cross-file check; all 9 verified to surface their labeled error code via the real validator |
+| `demo` profile: 30+ customers, 200+ orders, realistic mix | ✅ done — 32 customers/210 orders, both currencies, seed-reproducible, **verified against live Postgres including cross-org isolation** (identical bundle uploaded into two real organizations, confirmed no leakage) |
+| `load` profile (100,000-row scale) | 🔲 not started |
 
 **This closes the first genuine vertical slice** the build plan called
 for: a real browser login → authenticated API upload → durable worker
@@ -215,23 +218,20 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 
 | Acceptance criterion (intent.md #) | Implementing component(s) | Test(s) | Status |
 |---|---|---|---|
-| 1. Clean checkout starts via Compose, migrates, demo login | `infra/docker-compose.yml`, `infra/keycloak/revenueflow-realm.json`, Dockerfiles | Manual: `docker compose up --build` + browser login | ✅ verified live (screenshot-confirmed demo-admin login) |
-| 3. Valid imports become selectable versions; invalid bundles never change active data; repeat uploads idempotent | `api/imports.py`, `ingestion/activation.py`, `ingestion/loader.py`, `worker.py` | `tests/unit/test_ingestion_validator.py` (7/7) + `tests/integration/test_ingestion_activation.py` (3/3) + a real HTTP upload through the running stack | ✅ verified end-to-end (real upload → worker → activated dataset → queried rows); worker crash-restart recovery still ⏳ untested (Milestone 2 continuation) |
-| 4. Hand-calculated fixtures match domain outputs exactly; currency totals stay separate | `domain/balances.py`, `domain/shipments.py`, `domain/matching.py`, `domain/holds.py` | `tests/unit/test_domain_*.py` (20 tests, S01-S14+S16) | ✅ pure-function layer verified; SQL-backed service wrapping real dataset-version rows is ⏳ pending Docker |
-| 12 (partial). Seeded generator produces repeatable bundles | `seed/cli.py`, `seed/scenarios.py` | `tests/unit/test_generator_reproducibility.py` | ✅ passing for `small` profile |
-| All other criteria (2, 5–11, 13) | — | — | 🔲 not started — tracked against later milestones |
+| This table is superseded by docs/acceptance-report.md | — | — | See that file for the current, criterion-by-criterion status with evidence; it's updated every time a criterion's status changes, which this table was not kept in sync with |
 
 ## Risks and open questions
 
-- **No Docker/Postgres on this machine** (see Status above) — the single
-  biggest verification risk right now. Every "✅ written" item above needs
-  a real-stack pass once Docker Desktop is confirmed working.
-- Keycloak realm JSON has not been imported into a real Keycloak instance
-  yet — JSON schema is valid, but Keycloak's own import validation (client
-  scopes, protocol mapper config shape) is unverified until Docker is up.
-- `demo`/`load` generator profiles will need a seeded-random approach not
-  yet designed (Milestone 2/6) — the `small` profile's pure-fixed-scenario
-  approach won't scale to "30+ customers, 200+ orders."
+- `load` generator profile (100,000-row scale) doesn't exist yet —
+  needed for intent.md's performance-target measurement (criterion #9's
+  performance claim can't be made without it).
+- SSE/streaming chat, cancellation, and budget-exhaustion behavior are
+  unimplemented — the chat endpoint is synchronous request/response today.
+- Document evidence (TXT/PDF) is entirely unbuilt.
+- The exception workbench has no filters/sort/pagination/evidence-drawers
+  yet — it's a real but unfiltered table.
+- Observability (correlation IDs, metrics export) is minimal (basic
+  `structlog` usage only).
 
 ## Future scope (restated from intent.md, unchanged)
 
