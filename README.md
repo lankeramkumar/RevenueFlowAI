@@ -7,10 +7,26 @@ answers. Full product spec: [docs/intent.md](docs/intent.md),
 [docs/agent_architecture.md](docs/agent_architecture.md),
 [docs/synthetic_data_requirements.md](docs/synthetic_data_requirements.md).
 Build status and milestone tracking: [docs/implementation-plan.md](docs/implementation-plan.md).
+Acceptance-criteria status: [docs/acceptance-report.md](docs/acceptance-report.md).
 
-**Status:** Foundation milestone in progress. Ingestion UI, domain
-calculations, dashboard, and the chatbot/agent layer are not yet built —
-see the implementation plan for what's done vs. pending.
+**Status:** Foundation, Ingestion, Domain logic, and the core of the
+Investigation chat/agent layer are built and verified live. Document
+evidence, SSE streaming, the `demo`/`load`/`invalid` generator profiles,
+and several operational UI screens (customer timeline, administration)
+are not yet built — see the implementation plan and acceptance report for
+exactly what's done vs. pending.
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | System diagram, component responsibilities, request flow |
+| [docs/data-dictionary.md](docs/data-dictionary.md) | Full CSV schema reference (all 13 files) |
+| [docs/security.md](docs/security.md) | Threat model, auth/authz posture, current gates |
+| [docs/evaluation.md](docs/evaluation.md) | Test results, dataset provenance, live-mode verification |
+| [docs/operations.md](docs/operations.md) | Deployment, migrations, worker recovery, backup/retention gates |
+| [docs/implementation-plan.md](docs/implementation-plan.md) | Live milestone tracker (read first when resuming work) |
+| [docs/acceptance-report.md](docs/acceptance-report.md) | Status against every numbered acceptance criterion |
 
 ## Prerequisites
 
