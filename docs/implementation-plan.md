@@ -229,8 +229,14 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 - SSE/streaming chat, cancellation, and budget-exhaustion behavior are
   unimplemented — the chat endpoint is synchronous request/response today.
 - Document evidence (TXT/PDF) is entirely unbuilt.
-- The exception workbench has no filters/sort/pagination/evidence-drawers
-  yet — it's a real but unfiltered table.
+- ~~The exception workbench has no filters/sort/pagination/evidence-drawers~~
+  — now built: client-side filter, sortable columns, pagination, and a
+  per-row evidence drawer over the same real rows. A customer
+  detail/timeline screen was also added (`domain/customer_service.py`,
+  3 passing integration tests against live Postgres). Neither has been
+  verified live in a browser this session (no Docker Desktop available);
+  verified via `tsc --noEmit`, lint, `npm run build`, and backend
+  integration tests instead. Administration screens remain unbuilt.
 - Observability (correlation IDs, metrics export) is minimal (basic
   `structlog` usage only).
 

@@ -60,6 +60,7 @@ export function AppLayout() {
             <Link to="/">Dashboard</Link>
             <Link to="/chat">Investigate</Link>
             <Link to="/workbench">Exceptions</Link>
+            <Link to="/customers">Customers</Link>
             <Link to="/tasks">Tasks</Link>
             {me.role === "admin" && <Link to="/imports">Import</Link>}
           </nav>
