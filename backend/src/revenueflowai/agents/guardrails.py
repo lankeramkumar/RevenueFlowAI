@@ -75,13 +75,17 @@ def check_question(question: str) -> GuardrailVerdict | None:
                 code="guardrail_pii_in_question",
                 message=(
                     f"Your question contains a {label}. Please remove personal details and ask again. "
-                    "Refer to records by their IDs instead, such as an invoice or customer ID."
+                    'Refer to records by their IDs instead. For example: "What is the balance for '
+                    'DEMO-CUST-000001?"'
                 ),
             )
     if _contains_card_number(question):
         return GuardrailVerdict(
             code="guardrail_pii_in_question",
-            message="Your question contains what looks like a card number. Please remove it and ask again.",
+            message=(
+                "Your question contains what looks like a card number. Remove it and refer to the invoice or "
+                'customer ID instead, for example: "Show overdue invoices for DEMO-CUST-000001".'
+            ),
         )
     if _PII_REQUEST.search(question):
         return GuardrailVerdict(
@@ -89,7 +93,8 @@ def check_question(question: str) -> GuardrailVerdict | None:
             message=(
                 "I can't provide personal information about people, such as identifiers, bank or card "
                 "details, contact details, or addresses. I can explain balances, invoice and order status, "
-                "and holds by record ID."
+                'and holds by record ID. For example: "Summarize DEMO-CUST-000001" or '
+                '"Which orders are on hold?"'
             ),
         )
     if _ACTION_REQUEST.search(question):
@@ -98,7 +103,8 @@ def check_question(question: str) -> GuardrailVerdict | None:
             message=(
                 "I can only read and explain records. I can't change, approve, pay, release, or send "
                 "anything. "
-                "To follow up on an item, create a task in Tasks."
+                "To follow up on an item, create a task in Tasks. To see status instead, ask, for example: "
+                '"Show overdue invoices for DEMO-CUST-000001".'
             ),
         )
     return None
