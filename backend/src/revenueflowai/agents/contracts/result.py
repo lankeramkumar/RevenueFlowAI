@@ -93,6 +93,7 @@ class FinalInvestigation(BaseModel):
 
     summary: str
     findings: tuple[Finding, ...]
+    metrics: tuple[Metric, ...] = ()
     specialist_status: tuple[SpecialistStatusSummary, ...]
     evidence: tuple[EvidenceReference, ...]
     recommended_actions: tuple[ProposedAction, ...]

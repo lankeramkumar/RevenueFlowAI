@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 from revenueflowai.agents.contracts import (
     EvidenceReference,
     FinalInvestigation,
+    Metric,
     ProposedAction,
     RemainingBudgets,
     SpecialistStatusSummary,
@@ -49,8 +50,9 @@ def _build_context(scope: InvestigationScope, investigation_id: UUID) -> Trusted
 async def run_investigation(
     scope: InvestigationScope, question: str, transport: InternalAgentTransport,
     planner: QuestionPlanner, customer_id_hint: str | None = None,
+    prior_entities: dict[str, str] | None = None,
 ) -> FinalInvestigation:
-    plan = await planner.plan(question, customer_id_hint)
+    plan = await planner.plan(question, customer_id_hint, prior_entities)
     as_of_str = scope.business_as_of_date.isoformat()
 
     if not plan.dispatches:
@@ -85,8 +87,10 @@ async def run_investigation(
     seen_evidence: set[tuple[str, str]] = set()
     all_actions: list[ProposedAction] = []
     all_missing: list[str] = []
+    all_metrics: list[Metric] = []
 
     for r in results:
+        all_metrics.extend(r.metrics)
         for f in r.findings:
             if f.key not in seen_finding_keys:
                 seen_finding_keys.add(f.key)
@@ -113,7 +117,8 @@ async def run_investigation(
         summary += f" ({len(all_missing)} item(s) noted as missing/ambiguous.)"
 
     return FinalInvestigation(
-        summary=summary, findings=tuple(all_findings), specialist_status=specialist_status,
+        summary=summary, findings=tuple(all_findings), metrics=tuple(all_metrics),
+        specialist_status=specialist_status,
         evidence=tuple(all_evidence), recommended_actions=tuple(all_actions),
         missing_data=tuple(all_missing),
         dataset_version_id=scope.dataset_version_id, as_of_date=as_of_str,

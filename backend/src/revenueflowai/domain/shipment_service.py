@@ -99,6 +99,8 @@ async def compute_unbilled_shipments(
         )
         if result is None:
             continue  # below the age threshold: not an exception yet
+        if result.sufficient_evidence and result.unbilled_quantity <= 0:
+            continue  # fully billed: not an exception
 
         rows.append(UnbilledShipmentRow(
             shipment_external_id=shipment.external_id,

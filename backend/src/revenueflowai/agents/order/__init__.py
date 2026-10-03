@@ -8,6 +8,8 @@ recursively delegate back through the supervisor.
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from revenueflowai.agents.contracts import EvidenceReference, Finding, SpecialistResult, TaskRequest
+from revenueflowai.agents.format import money as _money
+from revenueflowai.agents.format import qty as _qty
 from revenueflowai.agents.tools import ToolScope, get_order_trace, list_unbilled_shipments
 from revenueflowai.agents.transport import SpecialistHandler
 
@@ -35,8 +37,9 @@ def make_order_handler(session: AsyncSession) -> SpecialistHandler:
                 findings.append(Finding(
                     key=f"unbilled:{r['shipment_line_id']}",
                     statement=(
-                        f"Shipment {r['shipment_id']} has {r['unbilled_quantity']} units unbilled "
-                        f"(estimated value {r['estimated_value']}, shipped {r['shipment_date']})."
+                        f"Shipment {r['shipment_id']} line {r['shipment_line_id']}: "
+                        f"{_qty(r['unbilled_quantity'])} of {_qty(r['shipped_quantity'])} units unbilled "
+                        f"(estimated value {_money(r['estimated_value'])}, shipped {r['shipment_date']})."
                         if r["sufficient_evidence"]
                         else f"Shipment {r['shipment_id']} line {r['shipment_line_id']} lacks sufficient "
                         "billing-link evidence; cannot confirm unbilled status."

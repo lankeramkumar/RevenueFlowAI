@@ -13,6 +13,7 @@ from revenueflowai.agents.contracts import (
     SpecialistResult,
     TaskRequest,
 )
+from revenueflowai.agents.format import money
 from revenueflowai.agents.tools import (
     ToolScope,
     find_receipt_matches_tool,
@@ -50,7 +51,7 @@ def make_cash_handler(session: AsyncSession) -> SpecialistHandler:
                 findings.append(Finding(
                     key=f"no_match:{receipt_id}",
                     statement=f"No invoice combination matches receipt {receipt_id}'s unapplied amount of "
-                    f"{match_data['unapplied_amount']}.",
+                    f"{money(match_data['unapplied_amount'])}.",
                     evidence=(),
                 ))
             else:
@@ -69,9 +70,10 @@ def make_cash_handler(session: AsyncSession) -> SpecialistHandler:
                     findings.append(Finding(
                         key=f"match:{receipt_id}:{','.join(p['invoice_ids'])}",
                         statement=(
-                            f"Receipt {receipt_id} ({match_data['unapplied_amount']} unapplied) matches "
-                            f"invoice(s) {', '.join(p['invoice_ids'])} for {p['total']} "
-                            f"(evidence: {p['evidence']}, residual {p['residual']})."
+                            f"Receipt {receipt_id} "
+                            f"({money(match_data['unapplied_amount'])} unapplied) matches "
+                            f"invoice(s) {', '.join(p['invoice_ids'])} for {money(p['total'])} "
+                            f"(evidence: {p['evidence']}, residual {money(p['residual'])})."
                         ),
                         evidence=evidence,
                     ))
@@ -103,7 +105,7 @@ def make_cash_handler(session: AsyncSession) -> SpecialistHandler:
                     ))
                     findings.append(Finding(
                         key=f"unapplied:{customer_id}:{currency}",
-                        statement=f"Customer {customer_id} has {amount} {currency} unapplied cash.",
+                        statement=f"Customer {customer_id} has {money(amount)} {currency} unapplied cash.",
                         evidence=(),
                     ))
                 if not data["unapplied_cash_by_currency"]:

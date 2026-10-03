@@ -176,3 +176,40 @@ async def test_admin_endpoints_only_ever_see_the_callers_own_organization(db_ses
 
     assert users_response.status_code == 200
     assert all(row["email"] != "http-DA@example.test" for row in users_response.json())
+
+
+async def test_chat_investigate_cross_org_business_unit_is_not_answered_with_foreign_data(db_session):
+    org_a, bu_a, _user_a, amount_a = await _make_org_with_dataset(db_session, "KA")
+    _org_b, _bu_b, user_b, _amount_b = await _make_org_with_dataset(db_session, "KB", role="admin")
+
+    await _override_app(db_session, user_b)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/chat/investigate",
+                json={"business_unit_id": str(bu_a.id), "question": "What does our AR aging look like?",
+                      "mode": "demo"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409  # org B has no active dataset under org A's business unit
+    assert str(amount_a) not in response.text
+    assert "HTTP-INV-KA" not in response.text
+
+
+async def test_evidence_drilldown_cross_org_record_is_not_resolvable(db_session):
+    org_a, bu_a, _user_a, _amount_a = await _make_org_with_dataset(db_session, "EA")
+    _org_b, _bu_b, user_b, _amount_b = await _make_org_with_dataset(db_session, "EB", role="admin")
+
+    await _override_app(db_session, user_b)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(
+                f"/api/v1/evidence/invoice/HTTP-INV-EA?business_unit_id={bu_a.id}"
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 409
+    assert "HTTP-INV-EA" not in response.text

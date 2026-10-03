@@ -58,12 +58,14 @@ async def activated(db_session, tenant, tmp_path):
 
 
 async def test_s02_disputed_invoice_does_not_reduce_balance(db_session, activated):
-    org, bu, _dv = activated
+    org, bu, dataset_version_id = activated
     summary = await compute_aging_summary(db_session, org.id, bu.id, AS_OF)
     assert summary.totals_by_currency_bucket["USD"]["1-30"] >= Decimal("800.00")
 
     dispute = (await db_session.execute(
-        select(Dispute).where(Dispute.external_id == "S02-DISP-1")
+        select(Dispute).where(
+            Dispute.external_id == "S02-DISP-1", Dispute.dataset_version_id == dataset_version_id
+        )
     )).scalar_one()
     assert dispute.disputed_amount == Decimal("200.00")
     assert dispute.status == "open"

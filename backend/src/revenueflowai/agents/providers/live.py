@@ -11,7 +11,12 @@ investigation loop is a documented future enhancement.
 
 import anthropic
 
-from revenueflowai.agents.providers.base import InvestigationPlan, QuestionPlanner, validate_plan
+from revenueflowai.agents.providers.base import (
+    InvestigationPlan,
+    QuestionPlanner,
+    resolve_follow_up_entities,
+    validate_plan,
+)
 
 PLANNER_MODEL = "claude-haiku-4-5-20251001"
 
@@ -68,7 +73,15 @@ class AnthropicQuestionPlanner(QuestionPlanner):
         self._client = anthropic.AsyncAnthropic(api_key=api_key)
         self._model = model
 
-    async def plan(self, question: str, customer_id_hint: str | None) -> InvestigationPlan:
+    async def plan(
+        self, question: str, customer_id_hint: str | None, prior_entities: dict[str, str] | None = None
+    ) -> InvestigationPlan:
+        user_content = question
+        if prior_entities:
+            known = ", ".join(f"{k}={v}" for k, v in sorted(prior_entities.items()))
+            user_content = (
+                f"{question}\n\n(Entities from the previous turn, for resolving references: {known})"
+            )
         try:
             response = await self._client.messages.create(  # type: ignore[call-overload]
                 model=self._model,
@@ -76,7 +89,7 @@ class AnthropicQuestionPlanner(QuestionPlanner):
                 system=_SYSTEM_PROMPT,
                 tools=[_PLAN_TOOL],
                 tool_choice={"type": "tool", "name": "submit_investigation_plan"},
-                messages=[{"role": "user", "content": question}],
+                messages=[{"role": "user", "content": user_content}],
             )
         except anthropic.APIError:
             # Provider outage/timeout: fall back to an empty plan rather than
@@ -98,6 +111,7 @@ class AnthropicQuestionPlanner(QuestionPlanner):
         entities = {k: v for k, v in (raw_entities or {}).items() if isinstance(v, str) and v}
         if customer_id_hint and "customer_id" not in entities:
             entities["customer_id"] = customer_id_hint
+        entities = resolve_follow_up_entities(question, entities, prior_entities)
 
         validated = validate_plan(dispatches, entities)
         return InvestigationPlan(dispatches=validated, entities=entities, label="live")

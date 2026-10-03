@@ -6,6 +6,7 @@ get_disputes, get_customer_summary.
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from revenueflowai.agents.contracts import EvidenceReference, Finding, Metric, SpecialistResult, TaskRequest
+from revenueflowai.agents.format import money
 from revenueflowai.agents.tools import (
     ToolScope,
     get_aging_summary,
@@ -54,7 +55,7 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                     findings.append(Finding(
                         key=f"overdue:{invoice_id}",
                         statement=(
-                            f"Invoice {invoice_id} has an open balance of {detail['open_balance']} "
+                            f"Invoice {invoice_id} has an open balance of {money(detail['open_balance'])} "
                             f"{detail['currency']}, {detail['days_overdue']} days overdue "
                             f"(bucket {detail['aging_bucket']})."
                         ),
@@ -69,7 +70,8 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                     findings.append(Finding(
                         key=f"dispute:{invoice_id}",
                         statement=(
-                            f"Invoice {invoice_id} has an open dispute of {detail['open_dispute_amount']} "
+                            f"Invoice {invoice_id} has an open dispute of "
+                            f"{money(detail['open_dispute_amount'])} "
                             f"{detail['currency']}. A dispute annotates the balance; it does not reduce it."
                         ),
                         evidence=evidence,
@@ -93,7 +95,7 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                         ))
                         findings.append(Finding(
                             key=f"aging:{currency}:{bucket}",
-                            statement=f"{total} {currency} is in the '{bucket}' aging bucket.",
+                            statement=f"{money(total)} {currency} is in the '{bucket}' aging bucket.",
                             evidence=(),
                         ))
             if not metrics:
@@ -128,14 +130,14 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                     ))
                     findings.append(Finding(
                         key=f"outstanding:{customer_id}:{currency}",
-                        statement=f"Customer {customer_id} has {amount} {currency} outstanding.",
+                        statement=f"Customer {customer_id} has {money(amount)} {currency} outstanding.",
                         evidence=evidence,
                     ))
                 findings.append(Finding(
                     key=f"disputes:{customer_id}",
                     statement=(
                         f"{data['open_dispute_count']} open dispute(s) totaling "
-                        f"{data['open_dispute_amount_total']}."
+                        f"{money(data['open_dispute_amount_total'])}."
                     ),
                     evidence=evidence,
                 ))

@@ -6,7 +6,12 @@ deterministic routing."
 import re
 
 from revenueflowai.agents.contracts import Domain
-from revenueflowai.agents.providers.base import InvestigationPlan, QuestionPlanner, validate_plan
+from revenueflowai.agents.providers.base import (
+    InvestigationPlan,
+    QuestionPlanner,
+    resolve_follow_up_entities,
+    validate_plan,
+)
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
 # Matched as a whole hyphen-delimited segment, so both intent.md-style IDs
@@ -37,7 +42,7 @@ def _classify(question: str) -> list[tuple[Domain, str]]:
         tasks.append(("order", "unbilled_shipments"))
     if "hold" in q and "order" in q:
         tasks.append(("order", "order_hold"))
-    if "overdue" in q or ("invoice" in q and "dispute" in q):
+    if "overdue" in q or "dispute" in q:
         tasks.append(("ar", "invoice_overdue_dispute"))
     if "aging" in q or ("overdue" in q and "invoices" in q and "which" in q):
         tasks.append(("ar", "aging_summary"))
@@ -54,10 +59,13 @@ def _classify(question: str) -> list[tuple[Domain, str]]:
 
 
 class DemoQuestionPlanner(QuestionPlanner):
-    async def plan(self, question: str, customer_id_hint: str | None) -> InvestigationPlan:
+    async def plan(
+        self, question: str, customer_id_hint: str | None, prior_entities: dict[str, str] | None = None
+    ) -> InvestigationPlan:
         entities = extract_entities(question)
         if customer_id_hint and "customer_id" not in entities:
             entities["customer_id"] = customer_id_hint
+        entities = resolve_follow_up_entities(question, entities, prior_entities)
 
         dispatches = validate_plan(_classify(question), entities)
         return InvestigationPlan(dispatches=dispatches, entities=entities, label="demo")

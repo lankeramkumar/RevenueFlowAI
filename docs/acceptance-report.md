@@ -1,11 +1,14 @@
 # RevenueFlow AI — Acceptance Report
 
-**Status as of this report: Milestones 1–3 substantially built and verified
-against a real running stack. Milestones 4–6 (full operational UI,
-chatbot/agent orchestration, hardening, remaining docs) are not started.**
-This is an honest mid-build checkpoint, not a claim of completion — see
-`docs/implementation-plan.md` for the live, continuously-updated
-milestone tracker this report summarizes.
+Checked against the 13 numbered acceptance criteria in `docs/intent.md`.
+Each criterion is marked **Passed**, **Failed**, or **Unverified**, with the
+evidence behind it. "Failed" means a stated requirement is demonstrably not
+met yet; "Unverified" means it was not checked here, or cannot be checked in
+this environment. Nothing is marked Passed on the strength of an unrun check.
+
+Verification date: 2026-10-03. Stack: `docker compose` in `infra/` (backend,
+worker, frontend, Postgres 16, Keycloak 26.0, LocalStack 3.8), Docker Desktop
+on the build machine.
 
 ## How to run it
 
@@ -16,117 +19,82 @@ docker compose up --build
 
 - Frontend: http://localhost:5173
 - Backend API docs: http://localhost:8000/docs
-- Keycloak: http://localhost:8080 (admin/admin)
-- Demo login: `demo-admin` / `DemoPass123!` (and `demo-analyst`,
-  `demo-approver`, `demo-viewer` — see README.md)
-- Postgres is on host port **5433**, not 5432 (see README's troubleshooting
-  section — a pre-existing native Postgres service on the build machine
-  held 5432)
+- Keycloak: http://localhost:8080 (admin console: admin / admin)
+- Demo logins (password `DemoPass123!` for all): `demo-admin`, `demo-analyst`,
+  `demo-approver`, `demo-viewer` (see README.md)
+- Postgres on host port **5433** (a native Postgres service on the build
+  machine holds 5432)
+- Demo data: `python -m revenueflowai.seed generate --profile demo --seed 42
+  --as-of 2026-10-02 --output ../sample-data/demo`, then upload the 13 CSVs on
+  the Import screen as admin. Nothing is seeded automatically.
 
-**One manual step currently required after first boot** (not yet
-automated — tracked as a gap below): seed an `organizations` /
-`business_units` / `app_users` row so a logged-in Keycloak user has
-application-level authorization. SQL used during verification is in
-`docs/implementation-plan.md`'s Milestone 1 section. Automating this
-(e.g. an admin bootstrap endpoint, or auto-provisioning on first login)
-is listed as a gap below.
+## Verification run (this session)
 
-## Acceptance criteria — actual status
+| Command | Result |
+|---|---|
+| `backend/.venv/Scripts/python.exe -m ruff check .` | All checks passed |
+| `backend/.venv/Scripts/python.exe -m mypy src` | Success: no issues in 77 source files |
+| `backend/.venv/Scripts/python.exe -m pytest -q` | **127 passed** (unit + integration against live Postgres) |
+| `frontend: npx tsc -b --noEmit` | clean |
+| `frontend: npm run lint` | clean |
+| `frontend: npm run build` | built |
+| `docker compose up --build -d` (backend, worker, frontend) | all services healthy; `/healthz` returns ok |
+| Demo CSV upload via `POST /api/v1/imports` + worker | job `activated`, 0 validation errors |
 
-| # | Criterion | Status | Evidence |
+Live browser checks were run against the Compose stack (Keycloak login as
+`demo-admin`): dashboard, exception workbench (filter, sort, pagination,
+evidence drawer), customer detail, admin, investigate chat (question,
+follow-up chip, reload from history, evidence drawer), and tasks.
+
+## Acceptance criteria
+
+| # | Criterion (intent.md) | Status | Evidence |
 |---|---|---|---|
-| 1 | Clean checkout starts via Compose, migrates, demo login | ✅ **Met** | `docker compose up --build` brings up all 5 services healthy; Alembic migration applies automatically; real browser login completed as demo-admin (screenshot-confirmed) |
-| 2 | All primary UI routes operate against persisted backend data; no mock-only dashboard | ⚠️ **Partially met** | Seven real routes now exist (dashboard, chat/investigate, exception workbench, task queue, CSV import, customer detail/timeline, admin), all against real data, nothing mocked. The exception workbench now has client-side filter/sort/pagination and per-row evidence drawers over its real rows; the customer detail screen is backed by a real SQL-wrapped domain service (`domain/customer_service.py`, 3 passing integration tests against live Postgres, including an S01 hand-calculation match). The new admin screen covers business-unit listing and app-user management (create/role-change/deactivate/business-unit grants) via `/api/v1/admin/*` (7 passing integration tests through the real FastAPI app with dependency overrides) — this automates what was previously a manual SQL step after first boot. **Not yet built**: org-level config screens (thresholds, currencies, retention, provider status) that `docs/implementation-plan.md` originally scoped for "administration." **Not yet verified live in a browser** (no Docker Desktop available in this work session to boot the stack) — verified via `tsc`/lint/build only for the frontend, and via live-Postgres integration tests for the backend |
-| 3 | Valid imports selectable; invalid bundles never corrupt active data; idempotent; worker recovers | ✅ **Met** | Activation, idempotency, and atomic rejection verified against live Postgres (unit + integration tests + a real upload through the running stack). Worker crash recovery verified by 3 integration tests against the real `claim_next_job` query — and finding a real bug in the process: a crashed job was getting permanently stuck at `status='staging'` since the reclaim query only matched `status='queued'`, now fixed |
-| 4 | Hand-calculated fixtures match domain outputs exactly; currency totals separate | ⚠️ **Partially met** | Verified for the `small` profile's 2 implemented scenarios (S01, S09) via both pure-function tests and a live SQL-backed dashboard query. 15 of 17 scenarios (S02–S08, S10–S17) have pure-function unit coverage but no corresponding generator fixture or SQL-service verification yet. Only the aging-balance domain service has a SQL wrapper; unbilled-shipment, receipt-matching, and holds do not yet |
-| 5 | All five example questions work in demo and live mode | ⚠️ **Partially met** | All five question *patterns* work in demo mode and were verified live with real answers and specialist attribution (unbilled shipments, invoice overdue/dispute, receipt match, order hold, customer summary). Live mode verified with genuinely free-form phrasing a regex could not match, correctly classified by a real Anthropic call. Not yet done: "actual source references" is partial — some findings carry `EvidenceReference`s, others (aging/customer-summary metrics) don't yet; honest missing-data behavior is confirmed (Order specialist declines to fabricate a customer-scoped holds answer it has no tool for) |
-| 6 | Cross-org/cross-BU authorization tests | ✅ **Met** | `assert_business_unit_access` is implemented and used on every endpoint that exists. Previously verified only at the domain-service layer (`test_authorization_scope.py`); now also verified at the HTTP/API layer directly (`test_authorization_http.py`, 4 tests hitting the real FastAPI app via `httpx.ASGITransport`): a non-admin without a grant gets a real 403, an admin from org B querying org A's `business_unit_id` gets back an empty/no-dataset response rather than org A's real figures (never a leak), a cross-org customer lookup 404s instead of returning someone else's record, and the admin-management endpoints never list another organization's rows. **Found and fixed a real bug in the process**: `get_current_app_user` (`auth/deps.py`) didn't eager-load `AppUser.granted_business_units`, so `assert_business_unit_access` touching that relationship for any non-admin role on any business-unit-scoped endpoint would have raised `MissingGreenlet` under the async session — a production-breaking bug for every non-admin request, caught only because this was the first test to actually exercise a non-admin role against that check |
-| 7 | Receipt suggestions handle ambiguity/residuals, no auto-apply | ⚠️ **Partially met** | `domain/matching.py`'s pure functions are implemented and unit-tested (exact/ambiguous/bounded multi-invoice); no SQL-backed service or API exposes this yet |
-| 8 | Task approvals persist audit history, no ERP/cash/email side effects | ✅ **Met** | Verified live: created and approved a real task through the browser UI; `audit_events` table confirmed holding both `task.created` and `task.transitioned` rows; the state machine has no transition that touches any ERP/payment/email system — approval only changes `status` |
-| 9 | Tests, CI, migrations, health checks, container builds, reproducible setup | ✅ **Met for what exists** | 97/97 backend tests pass (unit + integration against live Postgres); `ruff`/`mypy` clean; frontend `tsc`/`build`/lint clean; migrations verified applying against live Postgres; all 6 Compose services build and run; CI workflow (`.github/workflows/ci.yml`) is written but has not been run on an actual GitHub Actions runner. **Import performance target measured and passing**: 96,666-row bundle activated in 17.98s (see `docs/evaluation.md`), well under intent.md's 2-minute target — the paginated-screen latency target is still unmeasured |
-| 10 | README, architecture diagram, data dictionary, CSV templates, API docs, threat model, evaluation report, ops runbook | ✅ **Met** | All now present and accurate as of this writing: README.md, `docs/architecture.md` (Mermaid diagram), `docs/data-dictionary.md` (full 13-file column reference), `docs/security.md` (threat model + current gates), `docs/evaluation.md` (actual test results, not aspirational), `docs/operations.md` (deployment/migrations/worker-recovery/backup gates), CSV templates served live, OpenAPI docs auto-generated at `/docs`. Every doc states real gaps explicitly rather than implying completeness |
-| 11 | Supervisor routing, cross-domain combination, partial failure, cancellation, budgets, scope isolation, persisted follow-ups | ⚠️ **Partially met** | Supervisor + 3 specialists now real and verified live: single-domain routing, cross-domain fan-out (customer summary → Order+AR+Cash), deduped findings/evidence, honest partial results (Order declines unhandled intents rather than fabricating). Chat persistence verified (conversations/messages in Postgres). **Not done**: cancellation-after-dispatch, budget-exhaustion behavior (budgets are set but nothing currently exhausts them), scope-isolation-within-chat test (the general cross-org tests exist at the domain-service layer, not through the chat endpoint specifically) |
-| 12 | Seeded generator reproducible; scenario manifest; real validation; as-of boundary tests | ✅ **Met** | `small` profile now implements 16 of 17 fixed scenarios (S15 covered separately by a direct cross-org test), byte-reproducible, loads through real validation/activation. `invalid` profile: 9 deliberate-defect fixtures, each verified to surface its specific labeled error code via the real validator. `demo` profile: 32 customers/210 orders (seed-reproducible, both currencies, realistic partial fulfillment/disputes/holds/unapplied-cash mix), activated against live Postgres, and verified isolated across two real organizations uploading the identical bundle. `load` profile: generates a 100,000-row-target bundle (reproducible for a given seed, distinct `LOAD-` ID prefix from `demo`), real-activated against live Postgres at 96,666 rows in 17.98s (see `docs/evaluation.md`). S12 due-date boundary math verified both as pure functions and against live-activated data. All four generator profiles (`small`, `invalid`, `demo`, `load`) now exist and are exercised by real tests |
-| 13 | Live mode uses separate specialist modules; demo mode shares orchestration; UI labels mode; no A2A compliance claim | ⚠️ **Partially met** | Demo and live modes share the exact same specialist handlers and `InternalAgentTransport` — only the planning step (which specialist(s) to dispatch) differs, and that's a genuine, separately-verified Anthropic API call in live mode, not a relabeled demo response. The UI and API both label the mode on every response (`provider_mode: "demo"\|"live"`), verified live. No A2A compliance is claimed anywhere. **Gap**: live mode is "Claude classifies, deterministic code executes," not the fuller open-ended tool-calling loop description in agent_architecture.md implies for "real live-provider tool calling" — documented as a simplification, not hidden |
+| 1 | Clean checkout starts via documented Compose commands, applies migrations, offers demo login and a seeded dataset | **Failed** | Compose stack starts and migrations apply (the `backend` command runs `alembic upgrade head`). Demo login works. **Not met:** the dataset is not seeded automatically, and creating the first organization and business unit is still a manual SQL step (see Known gaps). A from-empty-volume boot was not run because it would destroy the local demo data. |
+| 2 | All primary UI routes operate against persisted backend data; no mock-only dashboard or broken placeholder controls | **Passed** | Routes verified in the browser against live data: dashboard (currency-separated aging), exceptions (paginated, filterable, evidence drawer), customers (`DEMO-CUST-000001`: real invoices, open balances, aging buckets, timeline), admin (business units, user role/active/grants), investigate (cited answers, history reload), tasks (create/approve, API-verified). Import verified by API upload + worker; the native file picker was not driven by automation. |
+| 3 | Valid imports become selectable versions; invalid bundles never change active data; repeat uploads are idempotent; worker restart recovers jobs | **Passed** | Demo bundle activated with 0 errors (live). Activation is atomic and versioned (`ingestion/activation.py`). Idempotency and rejection covered by ingestion integration tests. Crash recovery: 3 tests in `test_worker_recovery.py` (a crashed job stuck at `staging` is reclaimed after lease expiry; live leases are not reclaimed; attempt count is capped). |
+| 4 | Hand-calculated financial and partial-billing fixtures match domain outputs exactly; currency totals remain separate | **Failed** | Matches verified at SQL level for S01 (balance 600.00, bucket 31–60), S05 (3 units unbilled, 300.00), S06 (4 units, 200.00), S09 (USD and EUR separate), S02 (dispute does not reduce balance). S14 insufficient-evidence verified. **Not met:** the other scenarios (S03, S04, S07, S08, S10–S13, S16, S17) are verified only at pure-function level, not against activated data. Real defect fixed this session: fully billed shipment lines were reported as unbilled exceptions (see Defects below). |
+| 5 | All five example questions work in demo and live mode, with source references and honest missing-data behavior | **Failed** | Demo verified: invoice overdue/dispute (cited, with metric); customer summary (`1,150.00 EUR`, matches stored balance); order hold without an order ID asks which order (honest). Receipt match covered by integration test. Live verified with free-form phrasing (`docs/evaluation.md`). **Not met:** aging and customer-summary **metrics carry no source references**, so answers built only from them are uncited. The live answer to "which customers are slowest to pay" returned aging buckets, not a per-customer ranking; there is no ranking intent. |
+| 6 | Authorization tests prevent cross-org and cross-BU reads through API, tools, exports, object access, and background jobs | **Failed** | Passed for the API: `test_authorization_http.py` (6 tests through the real FastAPI app) covers dashboard, customer detail, chat, evidence drill-down, and admin lists. Denial path verified (403 `business_unit_not_granted`). Found and fixed a real bug: non-admin roles would raise `MissingGreenlet` on every business-unit-scoped request (`auth/deps.py`). **Not met:** no cross-scope tests for background jobs (import jobs) or tool-level calls, and there are no exports to test. |
+| 7 | Receipt suggestions handle ambiguity and residuals without modifying financial records | **Passed** | Matching is in `domain/matching.py` and `domain/matching_service.py`. Ambiguity and residuals are covered by unit and integration tests (S04 ambiguous match is not silently selected; cash specialist reports residuals). A grep of the matching, receipts, cash, and tools code found no session writes, so the path is read-only. |
+| 8 | Task approvals persist audit history but cannot post cash, email customers, or release ERP holds | **Passed** | Live: created and approved a task through the API (`proposed` → `approved`); `audit_events` holds `task.created` and `task.transitioned` rows for it. The task state machine changes only `status`; no transition calls an ERP, payment, or email integration. |
+| 9 | Tests, CI, migrations, health checks, container builds, and reproducible setup pass; report commands and results | **Unverified** | Local: 127 backend tests, ruff, mypy, frontend tsc/lint/build all pass (see table above). Containers build and run; health checks respond. **Unverified:** `.github/workflows/ci.yml` has never run on a GitHub Actions runner, so the CI half of this criterion is not established. |
+| 10 | README, architecture diagram, data dictionary, CSV templates, API documentation, threat model, evaluation report, and operations/deployment runbook are complete | **Failed** | The files exist, but several are stale. `README.md`, `docs/evaluation.md`, `docs/operations.md`, and `docs/security.md` do not yet describe this session's endpoints (`/api/v1/customers`, `/api/v1/admin/*`, `/api/v1/evidence/*`), the follow-up behavior, or the admin and customer screens. OpenAPI at `/docs` is generated and current. |
+| 11 | Supervisor routing (order-only, AR-only, cash-match, cross-domain without duplicate totals); tests for partial failure, cancellation, budgets, scope isolation, persisted follow-ups | **Failed** | Passed: routing tests for order, AR, and cash questions; customer summary fans out to all three specialists without duplicate totals; **persisted follow-ups work**: `test_chat_followup_api.py` shows a pronoun follow-up ("Is there a dispute on it?") resolving to the prior turn's invoice, with history reloading in order. **Not met:** cancellation is not implemented; budgets are set but never enforced; no chat-endpoint partial-failure test. |
+| 12 | Seeded generator reproducible; scenario manifest; generated records load through real validation; fixed as-of boundary tests pass | **Passed** | Four profiles (`small`, `invalid`, `demo`, `load`). Byte-reproducibility test; scenario manifest; the `small` profile activates through real validation; `invalid` fixtures each surface their labeled error code; `load` profile: 96,666 rows activated in 17.98s (see `docs/evaluation.md`). Boundary tests (S12 due-date math) pass. |
+| 13 | Live mode uses separate specialist modules with typed inputs/results and bounded provider calls; demo mode runs the same orchestration without credentials; UI labels execution mode; no A2A claim | **Passed** | Demo and live share the specialist handlers and `InternalAgentTransport`; only the planning step differs. Live planning is one bounded, forced-tool classification call, and `validate_plan` rejects anything outside the allowlist. The chat UI shows a **DEMO** or **LIVE** badge on every answer (verified in the browser). No A2A compliance is claimed. Documented simplification: live mode is classify-then-execute, not an open tool-calling loop. |
 
-**Summary: 6 of 13 criteria fully (or "fully for what exists") met, 7
-partially met with real evidence for the parts that exist, 0 not yet
-started.** Every criterion now has at least partial real coverage; none
-are at zero. "Partially met" still means real, meaningful gaps remain —
-see each row's evidence column and the Known Gaps section below for what
-specifically is missing. Nothing reported above as
-"met" or "partially met" is based on assumption — each has a specific
-test, log, query result, or screenshot behind it, cross-referenced in
-`docs/implementation-plan.md`.
+**Summary: 6 Passed (2, 3, 7, 8, 12, 13), 6 Failed (1, 4, 5, 6, 10, 11), 1 Unverified (9).**
 
-## What was actually built (no claims beyond this)
+## Defects found and fixed in this pass
 
-- **Foundation**: full Postgres schema (21 tables) via Alembic, applied
-  against live Postgres; Keycloak realm with 4 roles and working OIDC
-  login (real Authorization Code + PKCE flow, not a bypass); Docker
-  Compose with 6 services; S3-compatible storage adapter (LocalStack
-  locally, swappable); CI workflow definition; health/readiness endpoints.
-- **Ingestion**: CSV schema manifest and validator (schema, duplicate PK,
-  broken FK, unknown status, unsupported currency, negative amount);
-  upload API storing raw files with content hashes; durable worker
-  processing jobs via Postgres row-leases; transactional activation
-  (supersede/create/reject atomically); CSV template downloads.
-- **Domain logic**: pure, Decimal-exact calculation functions for invoice
-  balances (with overapplication flagging, never clamping), aging
-  buckets, dispute annotation, unbilled-shipment reconciliation, receipt
-  matching, and hold presentation. One of these (balances) has a
-  SQL-backed service and live API; the other three do not yet.
-- **Operational interface**: one real screen (aging dashboard) and one
-  real workflow (CSV upload with status polling), both verified against
-  live data end to end, including in an actual browser.
-- **Agent layer groundwork**: typed `TrustedContext`/`TaskRequest`/
-  `SpecialistResult`/`FinalInvestigation` contracts and an
-  `InternalAgentTransport` with routing, timeout, and duplicate-dispatch
-  protection — the scaffolding Milestone 5's Supervisor and specialists
-  will plug into, but no agents exist yet.
+- **Fully billed shipments reported as unbilled exceptions.** `domain/shipment_service.py` kept lines with `unbilled_quantity = 0`. The workbench and chat both showed them. Fixed; regression test `test_unbilled_exceptions.py` (includes hand-calculated S05/S06 values).
+- **Zero and trailing-zero decimals printed raw** (`0E-8`, `1150.0000 EUR`) in finding statements. Fixed with `agents/format.py` (2-dp money with separators; quantities without trailing zeros). Unit tests in `test_order_formatting.py`.
+- **Order-shipment findings were indistinguishable** (same wording per line, no line ID). Now include shipment and line IDs.
+- **Follow-up questions had no memory.** Each turn planned in isolation, so "it" or "this invoice" failed. Fixed: the prior assistant turn's invoice, receipt, or customer IDs are carried into the next plan only when the question actually points back (`resolve_follow_up_entities`). Unit and API tests cover it.
+- **Dispute questions without the word "invoice" did not route to AR.** Fixed in the demo classifier.
+- **Chat answers were a flat summary string.** The API now returns structured findings (statement + evidence), metrics, specialist status, missing data, and mode; history reloads with the same structure.
+- **Non-admin requests would crash** on business-unit-scoped endpoints (`MissingGreenlet`; `auth/deps.py`). Fixed with eager loading; covered by authorization tests.
+- **Shared-database test interference:** an existing scenario test queried disputes by external ID without scoping to its dataset version, which failed once other tests committed the same bundle. Scoped to the fixture's dataset version.
 
-## Known gaps (mandatory, not yet done)
+## Known gaps (unresolved)
 
-- SSE streaming/progress events for chat (current endpoint is synchronous
-  request/response); cancellation; budget-exhaustion behavior.
-- Document evidence upload/retrieval (TXT/PDF).
-- ~~Customer detail/timeline screen~~, ~~exception workbench
-  filters/sort/pagination/evidence-drawers~~, and user/business-unit
-  admin management — all now built (see criterion #2). Org-level config
-  screens (thresholds, currencies, retention, provider status) remain
-  unbuilt — a narrower, lower-priority gap than the user-management
-  piece that existed before.
-- ~~`load` synthetic data profile~~ — now implemented and performance-measured (see `docs/evaluation.md`); all four profiles (`small`, `invalid`, `demo`, `load`) exist.
-- ~~Full authorization test matrix~~ — now repeated at the HTTP/API layer
-  (`test_authorization_http.py`), not just the domain-service layer; see
-  criterion #6. Covers the dashboard, customer-detail, and admin
-  endpoints. **Not yet covered**: the chat/investigation endpoint
-  specifically, even though it uses the identical
-  `assert_business_unit_access(app_user, body.business_unit_id)` pattern
-  — a cross-org chat test is the same shape as the ones just added, just
-  not written yet.
-- Investigation/export/authorization-change audit events (import
-  activation and task decisions are covered; those features aren't built).
-- Live mode's planner classifies the question and lets deterministic code
-  execute it, rather than a full open-ended Anthropic tool-calling loop —
-  documented simplification, not a silent gap.
-- Observability (structured logs beyond basic `structlog` usage,
-  correlation IDs, metrics).
-- Paginated-screen latency measurement (p95 under 2s at 10 concurrent users) — the import-throughput half of the performance target is now measured and passing (see docs/evaluation.md).
-- ~~Automated bootstrap for organization/business-unit/app-user
-  seeding~~ — app-user creation/role/grant management is now a real admin
-  UI screen (`/api/v1/admin/users`); creating the *first* organization and
-  business unit for a brand-new tenant is still a manual SQL step (there's
-  no "create organization" endpoint yet, since every admin endpoint is
-  itself scoped to an existing `app_user.organization_id`).
+- Org and business-unit creation for a brand-new tenant is manual SQL; there is no "create organization" endpoint.
+- Chat has no cancellation, no budget enforcement, and no SSE streaming (the endpoint is request/response).
+- Aging and customer-summary metrics have no evidence references; live mode has no per-customer ranking intent.
+- Document evidence (TXT/PDF upload and retrieval) is not built.
+- Admin config screens (thresholds, currencies, retention, provider status) are not built.
+- Observability is basic `structlog` only (no correlation IDs or metrics export).
+- The chat UI has been checked at desktop width in the built-in browser only; mobile widths were not tested.
+- Import file picker was not exercised by browser automation (the upload path was verified via the API).
 
-## Production readiness gates (per intent.md's own requirement to list these)
+## Production readiness gates (not addressed by this build)
 
-Unchanged from the spec's baseline expectation — none of these are
-addressed by this build, and none should be inferred as addressed:
-real identity-provider configuration for a non-demo environment,
-HTTPS/domain setup, secret provisioning outside `.env` files, a backup
-restore drill, representative load testing, a security review, and
-business validation of the accounting/status mappings against real
-Oracle data. No public deployment or external account changes have been
-made or are authorized by this report.
+Per intent.md, none of these are addressed, and none should be read as
+addressed: real identity-provider configuration for a non-demo environment
+(the Keycloak realm uses demo users and a dev-mode issuer), HTTPS and domain
+setup, secret provisioning outside `.env` files, a backup restore drill,
+representative load testing (paginated-screen p95 is unmeasured), a security
+review, and business validation of the accounting and status mappings against
+real data. No public deployment or external account changes have been made or
+are authorized by this report.

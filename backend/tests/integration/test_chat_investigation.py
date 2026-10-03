@@ -105,7 +105,7 @@ async def test_customer_summary_dispatches_all_three_domains(db_session, tenant,
 
     domains = {s.domain for s in result.specialist_status}
     assert domains == {"order", "ar", "cash"}
-    assert "600.0000 USD" in result.summary  # AR's outstanding-balance finding
+    assert "600.00 USD" in result.summary  # AR's outstanding-balance finding
     assert any(e.record_id == "S01-CUST" for e in result.evidence)
 
 

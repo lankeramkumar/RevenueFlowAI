@@ -48,6 +48,33 @@ def validate_plan(
     return tuple(valid)
 
 
+FOLLOW_UP_REFERENCES = frozenset({
+    "it", "its", "this", "that", "these", "those", "them", "their", "same", "above",
+})
+ENTITY_KEYS = ("invoice_id", "receipt_id", "order_id", "customer_id")
+
+
+def resolve_follow_up_entities(
+    question: str, entities: dict[str, str], prior_entities: dict[str, str] | None
+) -> dict[str, str]:
+    """A follow-up like "is there a dispute on it?" carries no ID of its own;
+    borrow the prior turn's entities only when the question actually points
+    back ("it", "this", ...) and doesn't already name its own record.
+    """
+    if not prior_entities:
+        return entities
+    words = {w.strip("?.,!").lower() for w in question.split()}
+    if not (words & FOLLOW_UP_REFERENCES):
+        return entities
+    merged = dict(entities)
+    for key in ENTITY_KEYS:
+        if key not in merged and key in prior_entities:
+            merged[key] = prior_entities[key]
+    return merged
+
+
 class QuestionPlanner(ABC):
     @abstractmethod
-    async def plan(self, question: str, customer_id_hint: str | None) -> InvestigationPlan: ...
+    async def plan(
+        self, question: str, customer_id_hint: str | None, prior_entities: dict[str, str] | None = None
+    ) -> InvestigationPlan: ...

@@ -30,6 +30,9 @@ router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
 VIEW_ROLES = ("admin", "analyst", "approver", "viewer")
 
+# Evidence record types whose IDs can be carried into a follow-up question.
+_RECORD_TYPE_TO_ENTITY = {"invoice": "invoice_id", "receipt": "receipt_id", "customer": "customer_id"}
+
 
 def _get_planner(requested_mode: str) -> tuple[QuestionPlanner, str]:
     """Falls back to demo when live is requested but no key is configured --
@@ -41,6 +44,15 @@ def _get_planner(requested_mode: str) -> tuple[QuestionPlanner, str]:
 
         return AnthropicQuestionPlanner(settings.anthropic_api_key), "live"
     return DemoQuestionPlanner(), "demo"
+
+
+def _prior_entities(evidence: dict | None) -> dict[str, str]:
+    entities: dict[str, str] = {}
+    for item in (evidence or {}).get("items", []):
+        key = _RECORD_TYPE_TO_ENTITY.get(item.get("record_type", ""))
+        if key and key not in entities:
+            entities[key] = item["record_id"]
+    return entities
 
 
 class InvestigateRequest(BaseModel):
@@ -57,6 +69,18 @@ class EvidenceOut(BaseModel):
     record_id: str
 
 
+class FindingOut(BaseModel):
+    statement: str
+    evidence: list[EvidenceOut]
+
+
+class MetricOut(BaseModel):
+    name: str
+    value: str
+    unit_or_currency: str
+    calculation_provenance: str
+
+
 class SpecialistStatusOut(BaseModel):
     domain: str
     status: str
@@ -67,6 +91,8 @@ class InvestigateResponse(BaseModel):
     conversation_id: UUID
     summary: str
     provider_mode: str
+    findings: list[FindingOut]
+    metrics: list[MetricOut]
     specialist_status: list[SpecialistStatusOut]
     evidence: list[EvidenceOut]
     missing_data: list[str]
@@ -91,6 +117,7 @@ async def investigate(
             detail={"error_code": "no_active_dataset", "message": "Upload and activate a CSV bundle first."},
         )
 
+    prior_entities: dict[str, str] | None = None
     if body.conversation_id:
         conversation = (
             await session.execute(
@@ -102,6 +129,15 @@ async def investigate(
         ).scalar_one_or_none()
         if conversation is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail={"error_code": "not_found"})
+        last_assistant = (
+            await session.execute(
+                select(ChatMessage)
+                .where(ChatMessage.conversation_id == conversation.id, ChatMessage.role == "assistant")
+                .order_by(ChatMessage.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        prior_entities = _prior_entities(last_assistant.evidence if last_assistant else None)
     else:
         conversation = Conversation(
             organization_id=app_user.organization_id, business_unit_id=body.business_unit_id,
@@ -128,33 +164,46 @@ async def investigate(
         provider_mode=resolved_mode,
     )
 
-    result = await run_investigation(scope, body.question, transport, planner, body.customer_id_hint)
+    result = await run_investigation(
+        scope, body.question, transport, planner, body.customer_id_hint, prior_entities
+    )
+
+    findings = [
+        FindingOut(
+            statement=f.statement,
+            evidence=[EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
+                      for e in f.evidence],
+        )
+        for f in result.findings
+    ]
+    metrics = [
+        MetricOut(name=m.name, value=m.value, unit_or_currency=m.unit_or_currency,
+                  calculation_provenance=m.calculation_provenance)
+        for m in result.metrics
+    ]
+    evidence = [EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
+                for e in result.evidence]
+    specialist_status = [
+        SpecialistStatusOut(domain=s.domain, status=s.status, unavailable_reason=s.unavailable_reason)
+        for s in result.specialist_status
+    ]
 
     session.add(ChatMessage(
         conversation_id=conversation.id, role="assistant", content=result.summary,
         provider_mode=resolved_mode,
-        specialist_status={"items": [
-            {"domain": s.domain, "status": s.status, "unavailable_reason": s.unavailable_reason}
-            for s in result.specialist_status
-        ]},
-        evidence={"items": [
-            {"source_type": e.source_type, "record_type": e.record_type, "record_id": e.record_id}
-            for e in result.evidence
-        ]},
+        specialist_status={"items": [s.model_dump() for s in specialist_status]},
+        evidence={
+            "items": [e.model_dump() for e in evidence],
+            "findings": [f.model_dump() for f in findings],
+            "metrics": [m.model_dump() for m in metrics],
+        },
         missing_data={"items": list(result.missing_data)},
     ))
     await session.commit()
 
     return InvestigateResponse(
         conversation_id=conversation.id, summary=result.summary, provider_mode=resolved_mode,
-        specialist_status=[
-            SpecialistStatusOut(domain=s.domain, status=s.status, unavailable_reason=s.unavailable_reason)
-            for s in result.specialist_status
-        ],
-        evidence=[
-            EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
-            for e in result.evidence
-        ],
+        findings=findings, metrics=metrics, specialist_status=specialist_status, evidence=evidence,
         missing_data=list(result.missing_data),
         dataset_version_id=result.dataset_version_id, as_of_date=result.as_of_date,
     )
@@ -164,6 +213,23 @@ class MessageOut(BaseModel):
     role: str
     content: str
     provider_mode: str | None
+    findings: list[FindingOut] = []
+    metrics: list[MetricOut] = []
+    specialist_status: list[SpecialistStatusOut] = []
+    evidence: list[EvidenceOut] = []
+    missing_data: list[str] = []
+
+
+def _to_message_out(m: ChatMessage) -> MessageOut:
+    payload = m.evidence or {}
+    return MessageOut(
+        role=m.role, content=m.content, provider_mode=m.provider_mode,
+        findings=[FindingOut(**f) for f in payload.get("findings", [])],
+        metrics=[MetricOut(**x) for x in payload.get("metrics", [])],
+        specialist_status=[SpecialistStatusOut(**s) for s in (m.specialist_status or {}).get("items", [])],
+        evidence=[EvidenceOut(**e) for e in payload.get("items", [])],
+        missing_data=(m.missing_data or {}).get("items", []),
+    )
 
 
 @router.get("/{conversation_id}/messages", response_model=list[MessageOut])
@@ -192,4 +258,4 @@ async def list_messages(
         .scalars()
         .all()
     )
-    return [MessageOut(role=m.role, content=m.content, provider_mode=m.provider_mode) for m in messages]
+    return [_to_message_out(m) for m in messages]
