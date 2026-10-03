@@ -62,6 +62,7 @@ async def _seed(org_slug: str, admin_email: str, seed: int, as_of: date, profile
             select(BusinessUnit).where(BusinessUnit.organization_id == org.id, BusinessUnit.code == "BU1")
         )).scalar_one()
         admin = (await session.execute(select(AppUser).where(AppUser.email == admin_email))).scalar_one()
+        await _add_demo_role_users(session, org.id, bu, admin_email)
 
         with tempfile.TemporaryDirectory() as tmp:
             bundle_dir = Path(tmp)
@@ -88,6 +89,30 @@ def seed(
     profile: str = typer.Option("demo", help="demo (realistic mix) or small (scenario fixtures)."),
 ) -> None:
     typer.echo(asyncio.run(_seed(org_slug, admin_email, seed_value, date.fromisoformat(as_of), profile)))
+
+
+DEMO_ROLE_USERS = (
+    ("demo-analyst@revenueflow.test", "analyst", "Demo Analyst"),
+    ("demo-approver@revenueflow.test", "approver", "Demo Approver"),
+    ("demo-viewer@revenueflow.test", "viewer", "Demo Viewer"),
+)
+
+
+async def _add_demo_role_users(session, organization_id, bu: BusinessUnit, admin_email: str) -> None:
+    """Pre-provisions the non-admin demo users; each binds to its Cognito login on
+    first sign-in, as the admin does. Skips any email that already has an account.
+    """
+    for email, role, name in DEMO_ROLE_USERS:
+        if email == admin_email:
+            continue
+        exists = (await session.execute(select(AppUser).where(AppUser.email == email))).scalar_one_or_none()
+        if exists is not None:
+            continue
+        user = AppUser(
+            oidc_subject=f"pending:{email.lower()}", email=email, display_name=name, role=role,
+            organization_id=organization_id, granted_business_units=[bu],
+        )
+        session.add(user)
 
 
 if __name__ == "__main__":

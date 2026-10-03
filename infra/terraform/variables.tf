@@ -23,9 +23,9 @@ variable "running" {
 }
 
 variable "db_instance_class" {
-  description = "RDS instance class. db.t4g.micro is the smallest current PostgreSQL option."
+  description = "RDS instance class. db.t3.micro: same size as db.t4g.micro, more often available."
   type        = string
-  default     = "db.t4g.micro"
+  default     = "db.t3.micro"
 }
 
 variable "api_cpu" {
