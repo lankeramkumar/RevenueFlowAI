@@ -52,10 +52,10 @@ def validate_token(token: str) -> AuthenticatedPrincipal:
         claims = jwt.decode(
             token,
             jwks,
-            audience=settings.oidc_audience,
             issuer=settings.oidc_issuer,
-            options={"leeway": settings.jwt_leeway_seconds},
+            options={"leeway": settings.jwt_leeway_seconds, "verify_aud": False},
         )
+        _check_audience(claims, settings.oidc_audience)
     except JWTError as exc:
         raise TokenValidationError("invalid_token", str(exc)) from exc
     except httpx.HTTPError as exc:
@@ -71,3 +71,14 @@ def validate_token(token: str) -> AuthenticatedPrincipal:
         display_name=claims.get("name", claims.get("preferred_username", claims["sub"])),
         realm_roles=roles,
     )
+
+
+def _check_audience(claims: dict, expected: str) -> None:
+    """Keycloak access tokens carry the audience in `aud`. Cognito access tokens
+    carry the app client in `client_id` and no `aud`. Either must match exactly.
+    """
+    aud = claims.get("aud")
+    audiences = aud if isinstance(aud, list) else [aud] if aud else []
+    if expected in audiences or claims.get("client_id") == expected:
+        return
+    raise JWTError("token audience does not match this API")

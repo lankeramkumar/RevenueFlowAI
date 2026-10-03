@@ -6,6 +6,7 @@ import { useApi } from "../hooks/useApi";
 import { useAuth } from "react-oidc-context";
 import { ApiError } from "../api/client";
 import { streamPost } from "../api/stream";
+import { apiToken } from "../auth/apiToken";
 import { cellStyle, numericCellStyle, tableStyle } from "../ui/tableStyles";
 
 interface Evidence {
@@ -340,7 +341,7 @@ export function ChatPage() {
           customer_id_hint: customerHint.trim() || undefined,
           mode,
         },
-        auth.user?.access_token,
+        apiToken(auth.user),
         (event) => {
           if (event.event === "plan") setProgress((p) => ({ ...p, plan: event.dispatches }));
           if (event.event === "specialist") {

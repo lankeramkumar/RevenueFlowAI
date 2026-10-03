@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
+import { apiToken } from "../auth/apiToken";
 import { useMe } from "../auth/MeContext";
 import { ApiError } from "../api/client";
 import { useApi } from "../hooks/useApi";
@@ -49,7 +50,7 @@ export function DocumentsPage() {
       form.append("file", file);
       const response = await fetch(`${API_BASE_URL}/api/v1/documents`, {
         method: "POST",
-        headers: auth.user?.access_token ? { Authorization: `Bearer ${auth.user.access_token}` } : {},
+        headers: apiToken(auth.user) ? { Authorization: `Bearer ${apiToken(auth.user)}` } : {},
         body: form,
       });
       if (!response.ok) {
@@ -131,7 +132,7 @@ export function DocumentsPage() {
           <h3 style={{ marginTop: 0 }}>{detail.data.filename}</h3>
           <p className="page-subtitle">SHA-256 {detail.data.sha256}</p>
           <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0 }}>{detail.data.text}</pre>
-          <button type="button" onClick={() => void download(detail.data.id, detail.data.filename, auth.user?.access_token)}>Download original</button>
+          <button type="button" onClick={() => void download(detail.data.id, detail.data.filename, apiToken(auth.user))}>Download original</button>
         </div>
       )}
     </section>
