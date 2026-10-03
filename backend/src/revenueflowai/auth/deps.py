@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from revenueflowai.auth.oidc import TokenValidationError, validate_token
 from revenueflowai.db import get_session
@@ -35,7 +36,15 @@ async def get_current_app_user(
     principal=Depends(get_current_principal),
     session: AsyncSession = Depends(get_session),
 ) -> AppUser:
-    result = await session.execute(select(AppUser).where(AppUser.oidc_subject == principal.subject))
+    result = await session.execute(
+        select(AppUser)
+        # `assert_business_unit_access` reads this relationship synchronously
+        # for non-admin roles; without eager loading it here, that access
+        # triggers an implicit lazy load outside of an awaited call, which
+        # raises MissingGreenlet under AsyncSession on every such request.
+        .options(selectinload(AppUser.granted_business_units))
+        .where(AppUser.oidc_subject == principal.subject)
+    )
     app_user = result.scalar_one_or_none()
     if app_user is None or not app_user.is_active:
         raise HTTPException(

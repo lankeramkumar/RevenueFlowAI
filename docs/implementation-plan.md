@@ -197,10 +197,24 @@ be protected. Fixed across all 12 affected columns.
 
 **A second real bug found while testing live**: the `aging_summary` and `customer_summary` specialist branches originally only produced `Metric` objects, not `Finding` statements — so a successful result with real numbers produced an empty-looking summary ("No findings were returned"). Fixed by adding a `Finding` alongside each `Metric`; re-verified live before and after (the before-state is a good example of why live verification catches things unit tests on handler logic alone would not).
 
-### 6. Hardening & handoff — not started
-Scope-isolation tests, worker crash recovery, prompt-injection fixtures,
-observability, `load` profile + perf measurement, full `invalid` fixture
-matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
+### 6. Hardening & handoff — partially done
+Worker crash recovery: ✅ done (see Milestone 2's real-bug note above).
+`load` profile + perf measurement: ✅ done (96,666 rows / 17.98s; see
+`docs/evaluation.md`). Full `invalid` fixture matrix: ✅ done (9 fixtures).
+Cross-org/cross-BU authorization: ✅ done at both the domain-service layer
+(`test_authorization_scope.py`) and, as of this pass, the HTTP/API layer
+(`test_authorization_http.py`, 4 tests) -- which found and fixed a real
+bug: `get_current_app_user` wasn't eager-loading
+`AppUser.granted_business_units`, so `assert_business_unit_access` would
+have raised `MissingGreenlet` for any non-admin role on any
+business-unit-scoped endpoint (dashboard, customers, tasks, receipts --
+every one of them). Not yet covered by the same HTTP-layer test: the
+chat/investigation endpoint specifically (same `assert_business_unit_access`
+pattern, just not exercised yet). Prompt-injection fixtures (S17):
+tracked separately, not yet built. Observability (correlation IDs, metrics
+export): still minimal, basic `structlog` only. Remaining doc deliverables
+and `docs/acceptance-report.md`: kept continuously up to date throughout,
+not deferred to a final pass.
 
 ## Architectural decisions log
 
