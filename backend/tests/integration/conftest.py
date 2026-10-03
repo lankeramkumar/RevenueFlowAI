@@ -7,6 +7,7 @@ package is skipped rather than failed, so the DB-independent unit suite
 stays green without Docker running.
 """
 
+import os
 import socket
 import uuid
 
@@ -38,6 +39,9 @@ def _db_reachable() -> bool:
 
 
 _REACHABLE = _db_reachable()
+
+if not _REACHABLE and os.environ.get("REQUIRE_DATABASE_TESTS"):
+    raise RuntimeError("REQUIRE_DATABASE_TESTS is set but no Postgres is reachable at DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(not _REACHABLE, reason="No live Postgres reachable at DATABASE_URL")
 

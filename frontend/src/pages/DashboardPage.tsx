@@ -9,13 +9,27 @@ interface AgingSummaryResponse {
   totals_by_currency_bucket: Record<string, Record<string, string>>;
 }
 
-const BUCKET_ORDER = ["not_due", "1-30", "31-60", "61-90", "91+"];
+const BUCKETS: { key: string; label: string }[] = [
+  { key: "not_due", label: "Not due" },
+  { key: "1-30", label: "1–30 days" },
+  { key: "31-60", label: "31–60 days" },
+  { key: "61-90", label: "61–90 days" },
+  { key: "91+", label: "91+ days" },
+];
+
+function formatMoney(raw: string | undefined): string {
+  const value = Number(raw ?? "0");
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const cell = { padding: "8px 14px", borderBottom: "1px solid #e2e8f0" } as const;
+const numeric = { ...cell, textAlign: "right", fontVariantNumeric: "tabular-nums" } as const;
 
 /**
  * Real aging dashboard: calls the SQL-backed /api/v1/dashboard/aging-summary
- * endpoint (domain/services.py) for the caller's business unit and renders
- * whatever currency/bucket totals come back — no mock data, no client-side
- * math on amounts (money stays a decimal string end to end).
+ * endpoint (domain/services.py) for the caller's business unit. Amounts stay
+ * decimal strings in the data; formatting happens only at display time, and
+ * currencies are never combined.
  */
 export function DashboardPage() {
   const apiFetch = useApi();
@@ -43,32 +57,33 @@ export function DashboardPage() {
   return (
     <section>
       <h2>Invoice Aging</h2>
-      <p>
-        As of {summary.as_of_date} · dataset snapshot {summary.snapshot_date}
+      <p style={{ color: "#64748b", marginTop: 0 }}>
+        As of {summary.as_of_date} · dataset snapshot {summary.snapshot_date} · currencies are never combined
       </p>
       {currencies.length === 0 ? (
         <p>No open invoice balances in the active dataset.</p>
       ) : (
-        <table>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
           <thead>
-            <tr>
-              <th>Currency</th>
-              {BUCKET_ORDER.map((bucket) => (
-                <th key={bucket}>{bucket}</th>
+            <tr style={{ background: "#f1f5f9", textAlign: "left" }}>
+              <th style={cell}>Currency</th>
+              {BUCKETS.map((bucket) => (
+                <th key={bucket.key} style={{ ...cell, textAlign: "right" }}>{bucket.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {currencies.map((currency) => (
-              <tr key={currency}>
-                <td>{currency}</td>
-                {BUCKET_ORDER.map((bucket) => (
-                  <td key={bucket}>
-                    {summary.totals_by_currency_bucket[currency][bucket] ?? "0.00"}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {currencies.map((currency) => {
+              const buckets = summary.totals_by_currency_bucket[currency];
+              return (
+                <tr key={currency}>
+                  <td style={{ ...cell, fontWeight: 600, textAlign: "left" }}>{currency}</td>
+                  {BUCKETS.map((bucket) => (
+                    <td key={bucket.key} style={numeric}>{formatMoney(buckets[bucket.key])}</td>
+                  ))}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
