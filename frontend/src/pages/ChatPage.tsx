@@ -431,10 +431,20 @@ export function ChatPage() {
       >
         {bubbles.length === 0 && (
           <div>
-            <p style={{ color: "#475569" }}>
-              Ask about orders, invoices, receipts, shipments, or holds. Answers cite the stored records behind them;
-              click any citation to see the record.
-            </p>
+            <div className="scope-box">
+              <div>
+                <strong>I can answer</strong> questions about this business unit's orders, shipments, invoices,
+                receipts, order holds, and customer balances. Every answer cites the records it is based on.
+              </div>
+              <div>
+                <strong>I can't</strong> change or approve records, pay, release holds, send messages, or share
+                personal details such as contact information, bank or card numbers, or addresses. Messages with
+                that kind of information are refused.
+              </div>
+              <div style={{ color: "var(--ink-faint)", fontSize: 13 }}>
+                Use record IDs such as INV-1003, RCP-2001, ORD-3001, or DEMO-CUST-000001.
+              </div>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {STARTER_QUESTIONS.map((q) => (
                 <button

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None)
     live_planner_provider: str = Field(default="anthropic")  # "anthropic" | "bedrock"
     aws_region: str = Field(default="us-east-1")
+    bedrock_guardrail_id: str | None = Field(default=None)  # unset: deterministic guardrails only
+    bedrock_guardrail_version: str | None = Field(default=None)
 
     max_upload_bytes: int = Field(default=200 * 1024 * 1024)
 

@@ -152,13 +152,26 @@ class BedrockQuestionPlanner(QuestionPlanner):
     so no model API key is stored.
     """
 
-    def __init__(self, region: str, model_id: str = BEDROCK_PLANNER_MODEL, client: Any = None):
+    def __init__(
+        self,
+        region: str,
+        model_id: str = BEDROCK_PLANNER_MODEL,
+        client: Any = None,
+        guardrail_id: str | None = None,
+        guardrail_version: str | None = None,
+    ):
         if client is None:
             import boto3
 
             client = boto3.client("bedrock-runtime", region_name=region)
         self._client = client
         self._model_id = model_id
+        # A Bedrock Guardrail (PII, prompt-attack, and topic policies) wraps every planner call.
+        self._guardrail = (
+            {"guardrailIdentifier": guardrail_id, "guardrailVersion": guardrail_version or "DRAFT"}
+            if guardrail_id
+            else None
+        )
 
     async def plan(
         self, question: str, customer_id_hint: str | None, prior_entities: dict[str, str] | None = None
@@ -173,14 +186,20 @@ class BedrockQuestionPlanner(QuestionPlanner):
             "messages": [{"role": "user", "content": [{"text": user_message(question, prior_entities)}]}],
             "inferenceConfig": {"maxTokens": 512},
             "toolConfig": {
-                "tools": [{"toolSpec": {
-                    "name": PLAN_TOOL_NAME,
-                    "description": _PLAN_TOOL["description"],
-                    "inputSchema": {"json": _PLAN_TOOL["input_schema"]},
-                }}],
+                "tools": [
+                    {
+                        "toolSpec": {
+                            "name": PLAN_TOOL_NAME,
+                            "description": _PLAN_TOOL["description"],
+                            "inputSchema": {"json": _PLAN_TOOL["input_schema"]},
+                        }
+                    }
+                ],
                 "toolChoice": {"tool": {"name": PLAN_TOOL_NAME}},
             },
         }
+        if self._guardrail:
+            request["guardrailConfig"] = self._guardrail
         try:
             response = await asyncio.to_thread(self._client.converse, **request)
         except (BotoCoreError, ClientError) as exc:
@@ -189,6 +208,8 @@ class BedrockQuestionPlanner(QuestionPlanner):
             )
             return InvestigationPlan(dispatches=(), entities={}, label="live_provider_error")
 
+        if response.get("stopReason") == "guardrail_intervened":
+            return InvestigationPlan(dispatches=(), entities={}, label="live_guardrail_blocked")
         blocks = response.get("output", {}).get("message", {}).get("content", [])
         tool_use = next((b["toolUse"] for b in blocks if "toolUse" in b), None)
         if tool_use is None:

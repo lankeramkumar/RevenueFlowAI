@@ -21,6 +21,7 @@ from revenueflowai.agents.contracts import (
     TaskRequest,
     TrustedContext,
 )
+from revenueflowai.agents.guardrails import SCOPE_HELP
 from revenueflowai.agents.providers.base import MAX_PLAN_DISPATCHES, QuestionPlanner
 from revenueflowai.agents.transport import InternalAgentTransport
 
@@ -38,11 +39,18 @@ class InvestigationScope:
 
 def _build_context(scope: InvestigationScope, investigation_id: UUID) -> TrustedContext:
     return TrustedContext(
-        investigation_id=investigation_id, conversation_id=investigation_id, turn_id=uuid4(),
-        trace_id=uuid4(), task_id=uuid4(), actor_user_id=scope.actor_user_id,
-        organization_id=scope.organization_id, allowed_business_unit_ids=(scope.business_unit_id,),
-        dataset_version_id=scope.dataset_version_id, business_as_of_date=scope.business_as_of_date,
-        source_snapshot_date=scope.source_snapshot_date, deadline_at=datetime.now(UTC),
+        investigation_id=investigation_id,
+        conversation_id=investigation_id,
+        turn_id=uuid4(),
+        trace_id=uuid4(),
+        task_id=uuid4(),
+        actor_user_id=scope.actor_user_id,
+        organization_id=scope.organization_id,
+        allowed_business_unit_ids=(scope.business_unit_id,),
+        dataset_version_id=scope.dataset_version_id,
+        business_as_of_date=scope.business_as_of_date,
+        source_snapshot_date=scope.source_snapshot_date,
+        deadline_at=datetime.now(UTC),
         budgets=RemainingBudgets(
             tool_calls_remaining=24, model_requests_remaining=12, tokens_remaining=24_000
         ),
@@ -57,8 +65,11 @@ class InvestigationBudget:
 
 
 async def run_investigation(
-    scope: InvestigationScope, question: str, transport: InternalAgentTransport,
-    planner: QuestionPlanner, customer_id_hint: str | None = None,
+    scope: InvestigationScope,
+    question: str,
+    transport: InternalAgentTransport,
+    planner: QuestionPlanner,
+    customer_id_hint: str | None = None,
     prior_entities: dict[str, str] | None = None,
     budget: InvestigationBudget = InvestigationBudget(),
     on_event: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
@@ -70,19 +81,29 @@ async def run_investigation(
     as_of_str = scope.business_as_of_date.isoformat()
 
     if not plan.dispatches:
-        reason = (
-            "The live provider could not be reached; please try again or use demo mode."
-            if plan.label == "live_provider_error"
-            else "I couldn't determine which specialist to consult for this question. "
-            "Try asking about a specific invoice, order, receipt, or shipment ID, "
-            "or ask for a customer summary."
-        )
+        if plan.label == "live_provider_error":
+            reason = "The live provider could not be reached; please try again or use demo mode."
+            missing = "live_provider_unavailable"
+        elif plan.label == "live_guardrail_blocked":
+            reason = (
+                "I can't help with that request. It may contain personal information or ask for an action "
+                "I'm not allowed to take. " + SCOPE_HELP
+            )
+            missing = "guardrail_blocked_by_model_policy"
+        else:
+            reason = f"That question is outside what I can answer. {SCOPE_HELP}"
+            missing = "unsupported_question_pattern"
         return FinalInvestigation(
-            summary=reason, findings=(), specialist_status=(), evidence=(), recommended_actions=(),
-            dispatches=(), entities=dict(plan.entities),
-            missing_data=("unsupported_question_pattern",) if plan.label != "live_provider_error"
-            else ("live_provider_unavailable",),
-            dataset_version_id=scope.dataset_version_id, as_of_date=as_of_str,
+            summary=reason,
+            findings=(),
+            specialist_status=(),
+            evidence=(),
+            recommended_actions=(),
+            dispatches=(),
+            entities=dict(plan.entities),
+            missing_data=(missing,),
+            dataset_version_id=scope.dataset_version_id,
+            as_of_date=as_of_str,
         )
 
     investigation_id = uuid4()
@@ -97,8 +118,11 @@ async def run_investigation(
             break
         context = _build_context(scope, investigation_id)
         task = TaskRequest(
-            task_id=context.task_id, domain=domain, intent=intent,
-            resolved_entity_ids=plan.entities, context=context,
+            task_id=context.task_id,
+            domain=domain,
+            intent=intent,
+            resolved_entity_ids=plan.entities,
+            context=context,
         )
         result = await transport.dispatch(task)
         results.append(result)
@@ -141,10 +165,15 @@ async def run_investigation(
         summary += f" ({len(all_missing)} item(s) noted as missing/ambiguous.)"
 
     return FinalInvestigation(
-        summary=summary, findings=tuple(all_findings), metrics=tuple(all_metrics),
-        dispatches=tuple(f"{d}:{i}" for d, i in plan.dispatches), entities=dict(plan.entities),
+        summary=summary,
+        findings=tuple(all_findings),
+        metrics=tuple(all_metrics),
+        dispatches=tuple(f"{d}:{i}" for d, i in plan.dispatches),
+        entities=dict(plan.entities),
         specialist_status=specialist_status,
-        evidence=tuple(all_evidence), recommended_actions=tuple(all_actions),
+        evidence=tuple(all_evidence),
+        recommended_actions=tuple(all_actions),
         missing_data=tuple(all_missing + budget_missing),
-        dataset_version_id=scope.dataset_version_id, as_of_date=as_of_str,
+        dataset_version_id=scope.dataset_version_id,
+        as_of_date=as_of_str,
     )

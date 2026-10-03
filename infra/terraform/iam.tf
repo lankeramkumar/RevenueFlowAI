@@ -56,6 +56,12 @@ resource "aws_iam_role_policy" "task" {
         ]
       },
       {
+        Sid      = "BedrockGuardrail"
+        Effect   = "Allow"
+        Action   = ["bedrock:ApplyGuardrail"]
+        Resource = [aws_bedrock_guardrail.this.guardrail_arn]
+      },
+      {
         Sid      = "AppBuckets"
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]

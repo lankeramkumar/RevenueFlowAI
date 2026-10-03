@@ -433,3 +433,16 @@ label > textarea {
   font-size: 13px;
   color: var(--ink-faint);
 }
+
+/* Scope notice on the Investigate page */
+.scope-box {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: var(--brand-soft);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  font-size: 14px;
+}

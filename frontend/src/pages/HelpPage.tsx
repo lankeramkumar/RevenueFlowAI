@@ -150,6 +150,33 @@ export function HelpPage() {
         </div>
       ))}
 
+      <h3>What this app can and cannot do</h3>
+      <div className="card">
+        <ul>
+          <li>
+            <strong>Can:</strong> explain balances, invoice and order status, shipments that are not yet billed,
+            order holds, receipts that match or don't match invoices, and customer summaries, each with citations.
+          </li>
+          <li>
+            <strong>Cannot:</strong> change records, approve or pay anything, release holds, send emails or
+            messages, or give advice on what to do with a customer.
+          </li>
+          <li>
+            <strong>Personal data:</strong> questions that include personal details (an email, phone number,
+            card or bank number, or SSN) are refused before anything is sent to a model. Requests for personal
+            details about people are refused too. Use record IDs instead.
+          </li>
+          <li>
+            <strong>Off-topic questions</strong> (weather, general knowledge, writing requests) are declined with
+            examples of what to ask.
+          </li>
+          <li>
+            <strong>Live mode</strong> adds Amazon Bedrock Guardrails on top of these rules. It can make mistakes
+            in routing, so check the citations before acting on an answer.
+          </li>
+        </ul>
+      </div>
+
       <h3>Frequently asked questions</h3>
       {FAQ.map((item) => (
         <div key={item.q} className="card help-faq">

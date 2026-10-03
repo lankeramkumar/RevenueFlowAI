@@ -19,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from revenueflowai.agents.ar import make_ar_handler
 from revenueflowai.agents.cash import make_cash_handler
-from revenueflowai.agents.contracts import Domain
+from revenueflowai.agents.contracts import Domain, FinalInvestigation
+from revenueflowai.agents.guardrails import GuardrailVerdict, check_question, redact_output
 from revenueflowai.agents.order import make_order_handler
 from revenueflowai.agents.providers.base import QuestionPlanner
 from revenueflowai.agents.providers.demo import DemoQuestionPlanner
@@ -41,6 +42,8 @@ log = structlog.get_logger("investigation")
 def _record_investigation(result, mode: str, elapsed: float, conversation_id: UUID) -> None:
     if result.findings:
         outcome = "answered"
+    elif any(m.startswith("guardrail_") for m in result.missing_data):
+        outcome = "guardrail_blocked"
     elif result.missing_data:
         outcome = "clarification_or_unsupported"
     else:
@@ -50,16 +53,38 @@ def _record_investigation(result, mode: str, elapsed: float, conversation_id: UU
     for s in result.specialist_status:
         registry.inc("specialist_results_total", domain=s.domain, status=s.status)
     log.info(
-        "investigation.completed", conversation_id=str(conversation_id), mode=mode, outcome=outcome,
-        specialists=[s.domain for s in result.specialist_status], findings=len(result.findings),
-        evidence=len(result.evidence), missing=len(result.missing_data),
+        "investigation.completed",
+        conversation_id=str(conversation_id),
+        mode=mode,
+        outcome=outcome,
+        specialists=[s.domain for s in result.specialist_status],
+        findings=len(result.findings),
+        evidence=len(result.evidence),
+        missing=len(result.missing_data),
         duration_ms=round(elapsed * 1000, 2),
     )
+
 
 VIEW_ROLES = ("admin", "analyst", "approver", "viewer")
 
 # Evidence record types whose IDs can be carried into a follow-up question.
 _RECORD_TYPE_TO_ENTITY = {"invoice": "invoice_id", "receipt": "receipt_id", "customer": "customer_id"}
+
+
+def _refusal_result(verdict: GuardrailVerdict, dataset_version) -> FinalInvestigation:
+    """A deterministic refusal, returned before any planner or specialist runs."""
+    return FinalInvestigation(
+        summary=verdict.message,
+        findings=(),
+        specialist_status=(),
+        evidence=(),
+        recommended_actions=(),
+        dispatches=(),
+        entities={},
+        missing_data=(verdict.code,),
+        dataset_version_id=dataset_version.id,
+        as_of_date=dataset_version.snapshot_date.isoformat(),
+    )
 
 
 def _get_planner(requested_mode: str) -> tuple[QuestionPlanner, str]:
@@ -71,7 +96,12 @@ def _get_planner(requested_mode: str) -> tuple[QuestionPlanner, str]:
         from revenueflowai.agents.providers.live import AnthropicQuestionPlanner, BedrockQuestionPlanner
 
         if settings.live_planner_provider == "bedrock":
-            return BedrockQuestionPlanner(settings.aws_region), "live"
+            planner = BedrockQuestionPlanner(
+                settings.aws_region,
+                guardrail_id=settings.bedrock_guardrail_id,
+                guardrail_version=settings.bedrock_guardrail_version,
+            )
+            return planner, "live"
         if settings.anthropic_api_key:
             return AnthropicQuestionPlanner(settings.anthropic_api_key), "live"
     return DemoQuestionPlanner(), "demo"
@@ -172,8 +202,10 @@ async def _investigate_core(
         prior_entities = _prior_entities(last_assistant.evidence if last_assistant else None)
     else:
         conversation = Conversation(
-            organization_id=app_user.organization_id, business_unit_id=body.business_unit_id,
-            created_by_user_id=app_user.id, dataset_version_id=dataset_version.id,
+            organization_id=app_user.organization_id,
+            business_unit_id=body.business_unit_id,
+            created_by_user_id=app_user.id,
+            dataset_version_id=dataset_version.id,
             title=body.question[:256],
         )
         session.add(conversation)
@@ -182,30 +214,40 @@ async def _investigate_core(
     session.add(ChatMessage(conversation_id=conversation.id, role="user", content=body.question))
 
     planner, resolved_mode = _get_planner(body.mode)
-    handlers: dict[Domain, SpecialistHandler] = {
-        "order": make_order_handler(session),
-        "ar": make_ar_handler(session),
-        "cash": make_cash_handler(session),
-    }
-    transport = InternalAgentTransport(handlers=handlers)
+    refusal = check_question(body.question)
+    if refusal is not None:
+        result = _refusal_result(refusal, dataset_version)
+    else:
+        handlers: dict[Domain, SpecialistHandler] = {
+            "order": make_order_handler(session),
+            "ar": make_ar_handler(session),
+            "cash": make_cash_handler(session),
+        }
+        transport = InternalAgentTransport(handlers=handlers)
 
-    scope = InvestigationScope(
-        organization_id=app_user.organization_id, business_unit_id=body.business_unit_id,
-        dataset_version_id=dataset_version.id, business_as_of_date=dataset_version.snapshot_date,
-        source_snapshot_date=dataset_version.snapshot_date, actor_user_id=app_user.id,
-        provider_mode=resolved_mode,
-    )
+        scope = InvestigationScope(
+            organization_id=app_user.organization_id,
+            business_unit_id=body.business_unit_id,
+            dataset_version_id=dataset_version.id,
+            business_as_of_date=dataset_version.snapshot_date,
+            source_snapshot_date=dataset_version.snapshot_date,
+            actor_user_id=app_user.id,
+            provider_mode=resolved_mode,
+        )
 
-    result = await run_investigation(
-        scope, body.question, transport, planner, body.customer_id_hint, prior_entities, on_event=on_event
-    )
+        result = await run_investigation(
+            scope, body.question, transport, planner, body.customer_id_hint, prior_entities, on_event=on_event
+        )
     _record_investigation(result, resolved_mode, time.perf_counter() - started, conversation.id)
 
+    summary = redact_output(result.summary)
     findings = [
         FindingOut(
-            statement=f.statement,
-            evidence=[EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
-                      for e in f.evidence],
+            statement=redact_output(f.statement),
+            evidence=[
+                EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
+                for e in f.evidence
+            ],
         )
         for f in result.findings
     ]
@@ -214,36 +256,52 @@ async def _investigate_core(
     )
     findings.extend(document_findings)
     metrics = [
-        MetricOut(name=m.name, value=m.value, unit_or_currency=m.unit_or_currency,
-                  calculation_provenance=m.calculation_provenance)
+        MetricOut(
+            name=m.name,
+            value=m.value,
+            unit_or_currency=m.unit_or_currency,
+            calculation_provenance=m.calculation_provenance,
+        )
         for m in result.metrics
     ]
-    evidence = [EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
-                for e in result.evidence]
+    evidence = [
+        EvidenceOut(source_type=e.source_type, record_type=e.record_type, record_id=e.record_id)
+        for e in result.evidence
+    ]
     evidence.extend(d.evidence[0] for d in document_findings)
     specialist_status = [
         SpecialistStatusOut(domain=s.domain, status=s.status, unavailable_reason=s.unavailable_reason)
         for s in result.specialist_status
     ]
 
-    session.add(ChatMessage(
-        conversation_id=conversation.id, role="assistant", content=result.summary,
-        provider_mode=resolved_mode,
-        specialist_status={"items": [s.model_dump() for s in specialist_status]},
-        evidence={
-            "items": [e.model_dump() for e in evidence],
-            "findings": [f.model_dump() for f in findings],
-            "metrics": [m.model_dump() for m in metrics],
-        },
-        missing_data={"items": list(result.missing_data)},
-    ))
+    session.add(
+        ChatMessage(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=summary,
+            provider_mode=resolved_mode,
+            specialist_status={"items": [s.model_dump() for s in specialist_status]},
+            evidence={
+                "items": [e.model_dump() for e in evidence],
+                "findings": [f.model_dump() for f in findings],
+                "metrics": [m.model_dump() for m in metrics],
+            },
+            missing_data={"items": list(result.missing_data)},
+        )
+    )
     await session.commit()
 
     return InvestigateResponse(
-        conversation_id=conversation.id, summary=result.summary, provider_mode=resolved_mode,
-        findings=findings, metrics=metrics, specialist_status=specialist_status, evidence=evidence,
+        conversation_id=conversation.id,
+        summary=summary,
+        provider_mode=resolved_mode,
+        findings=findings,
+        metrics=metrics,
+        specialist_status=specialist_status,
+        evidence=evidence,
         missing_data=list(result.missing_data),
-        dataset_version_id=result.dataset_version_id, as_of_date=result.as_of_date,
+        dataset_version_id=result.dataset_version_id,
+        as_of_date=result.as_of_date,
     )
 
 
@@ -270,7 +328,9 @@ class MessageOut(BaseModel):
 def _to_message_out(m: ChatMessage) -> MessageOut:
     payload = m.evidence or {}
     return MessageOut(
-        role=m.role, content=m.content, provider_mode=m.provider_mode,
+        role=m.role,
+        content=m.content,
+        provider_mode=m.provider_mode,
         findings=[FindingOut(**f) for f in payload.get("findings", [])],
         metrics=[MetricOut(**x) for x in payload.get("metrics", [])],
         specialist_status=[SpecialistStatusOut(**s) for s in (m.specialist_status or {}).get("items", [])],
@@ -297,11 +357,13 @@ async def list_messages(
     assert_business_unit_access(app_user, conversation.business_unit_id)
 
     messages = (
-        (await session.execute(
-            select(ChatMessage)
-            .where(ChatMessage.conversation_id == conversation_id)
-            .order_by(ChatMessage.created_at)
-        ))
+        (
+            await session.execute(
+                select(ChatMessage)
+                .where(ChatMessage.conversation_id == conversation_id)
+                .order_by(ChatMessage.created_at)
+            )
+        )
         .scalars()
         .all()
     )
@@ -365,7 +427,10 @@ async def investigate_stream(
 
 
 async def _documents_mentioning(
-    session: AsyncSession, organization_id: UUID, business_unit_id: UUID, entities: dict[str, str],
+    session: AsyncSession,
+    organization_id: UUID,
+    business_unit_id: UUID,
+    entities: dict[str, str],
 ) -> list[FindingOut]:
     """Cites uploaded documents whose text contains a record ID this
     investigation resolved. Deterministic substring matching; no model reads
@@ -374,19 +439,27 @@ async def _documents_mentioning(
     needles = {v for v in entities.values() if len(v) >= 4}
     if not needles:
         return []
-    docs = (await session.execute(
-        select(Document).where(
-            Document.organization_id == organization_id,
-            Document.business_unit_id == business_unit_id,
+    docs = (
+        (
+            await session.execute(
+                select(Document).where(
+                    Document.organization_id == organization_id,
+                    Document.business_unit_id == business_unit_id,
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
     findings: list[FindingOut] = []
     for doc in docs:
         hits = sorted(n for n in needles if n in doc.extracted_text)
         if not hits:
             continue
-        findings.append(FindingOut(
-            statement=f"Document '{doc.filename}' mentions {', '.join(hits)}.",
-            evidence=[EvidenceOut(source_type="document", record_type="document", record_id=str(doc.id))],
-        ))
+        findings.append(
+            FindingOut(
+                statement=f"Document '{doc.filename}' mentions {', '.join(hits)}.",
+                evidence=[EvidenceOut(source_type="document", record_type="document", record_id=str(doc.id))],
+            )
+        )
     return findings

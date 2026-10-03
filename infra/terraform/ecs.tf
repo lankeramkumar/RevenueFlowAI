@@ -8,6 +8,8 @@ locals {
     { name = "OIDC_AUDIENCE", value = aws_cognito_user_pool_client.web.id },
     { name = "CORS_ALLOWED_ORIGINS", value = jsonencode([local.app_origin]) },
     { name = "LIVE_PLANNER_PROVIDER", value = "bedrock" },
+    { name = "BEDROCK_GUARDRAIL_ID", value = aws_bedrock_guardrail.this.guardrail_id },
+    { name = "BEDROCK_GUARDRAIL_VERSION", value = aws_bedrock_guardrail_version.this.version },
     { name = "AWS_REGION", value = var.region },
     { name = "S3_REGION", value = var.region },
     { name = "S3_BUCKET_RAW_IMPORTS", value = aws_s3_bucket.this["raw_imports"].id },
