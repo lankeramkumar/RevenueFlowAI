@@ -177,6 +177,14 @@ export function HelpPage() {
         </ul>
       </div>
 
+      <div className="card help-start">
+        <h3>More detail</h3>
+        <p>
+          The <a href="/guide">Guide</a> covers the three specialist agents, the limitations, and how to prepare
+          and submit your data, including template downloads.
+        </p>
+      </div>
+
       <h3>Frequently asked questions</h3>
       {FAQ.map((item) => (
         <div key={item.q} className="card help-faq">

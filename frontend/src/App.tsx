@@ -9,6 +9,7 @@ import { CustomerDetailPage } from "./pages/CustomerDetailPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExceptionWorkbenchPage } from "./pages/ExceptionWorkbenchPage";
+import { GuidePage } from "./pages/GuidePage";
 import { HelpPage } from "./pages/HelpPage";
 import { ImportPage } from "./pages/ImportPage";
 import { TaskQueuePage } from "./pages/TaskQueuePage";
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="imports" element={<ImportPage />} />
               <Route path="admin" element={<AdminPage />} />
               <Route path="help" element={<HelpPage />} />
+              <Route path="guide" element={<GuidePage />} />
             </Route>
           </Routes>
         </BrowserRouter>
