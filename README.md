@@ -204,8 +204,8 @@ Full description, including the request flow and the agent contracts, is in
 
 This is a working vertical slice, not a production deployment. In particular:
 
-- Chat is request/response. Streaming, cancellation, and budget enforcement are not built.
-- Document evidence (TXT, PDF) is not built.
+- Chat streams progress per specialist and cancels in-flight work when the client disconnects or presses Stop. Cancellation is in-process: a server restart during a run loses that run. There is no durable background job model.
+- Document evidence: TXT and PDF upload, extraction, and retrieval are built. Chat answers do not yet cite documents automatically; documents are cited through the evidence drill-down.
 - Aggregate aging figures cite the invoices behind them. Live-mode evals were measured in one run.
 - The Keycloak realm is a development realm with demo users and a dev-mode issuer.
 - No independent security review, rate limiting, HTTPS setup, or backup restore drill has been done.

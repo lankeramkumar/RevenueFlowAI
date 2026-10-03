@@ -134,3 +134,14 @@ data. No public deployment or external account changes have been made.
 
 Open items: no independent security review; no rate limiting; the Keycloak
 realm is a development realm (demo users, dev-mode issuer).
+
+## Documents and streaming (2026-10-03)
+
+- Document uploads are checked for type (a `.pdf` must start with a PDF header;
+  only UTF-8 text is accepted for `.txt`), size (10 MB), and non-empty extracted
+  text. Filenames are reduced to their final path component.
+- Documents are scoped to organization and business unit. A document from another
+  organization returns 404 for both its metadata and its content (tested).
+- Text extraction is deterministic; no model reads uploaded documents.
+- The streaming investigation endpoint cancels in-flight work when the client
+  disconnects. Nothing is persisted for a cancelled run.

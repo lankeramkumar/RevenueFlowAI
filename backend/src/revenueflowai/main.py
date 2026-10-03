@@ -11,6 +11,7 @@ from revenueflowai.api.admin import router as admin_router
 from revenueflowai.api.chat import router as chat_router
 from revenueflowai.api.customers import router as customers_router
 from revenueflowai.api.dashboard import router as dashboard_router
+from revenueflowai.api.documents import router as documents_router
 from revenueflowai.api.evidence import router as evidence_router
 from revenueflowai.api.health import router as health_router
 from revenueflowai.api.imports import router as imports_router
@@ -30,7 +31,7 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     store = S3CompatibleObjectStore()
-    for bucket in (settings.s3_bucket_raw_imports, settings.s3_bucket_exports):
+    for bucket in (settings.s3_bucket_raw_imports, settings.s3_bucket_exports, settings.s3_bucket_documents):
         try:
             await store.ensure_bucket(bucket)
         except Exception:
@@ -62,6 +63,7 @@ app.include_router(dashboard_router)
 app.include_router(customers_router)
 app.include_router(admin_router)
 app.include_router(evidence_router)
+app.include_router(documents_router)
 app.include_router(me_router)
 app.include_router(receipts_router)
 app.include_router(tasks_router)

@@ -6,6 +6,7 @@ import { AppLayout } from "./layout/AppLayout";
 import { AdminPage } from "./pages/AdminPage";
 import { ChatPage } from "./pages/ChatPage";
 import { CustomerDetailPage } from "./pages/CustomerDetailPage";
+import { DocumentsPage } from "./pages/DocumentsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExceptionWorkbenchPage } from "./pages/ExceptionWorkbenchPage";
 import { ImportPage } from "./pages/ImportPage";
@@ -24,6 +25,7 @@ export default function App() {
               <Route path="chat" element={<ChatPage />} />
               <Route path="workbench" element={<ExceptionWorkbenchPage />} />
               <Route path="customers" element={<CustomerDetailPage />} />
+              <Route path="documents" element={<DocumentsPage />} />
               <Route path="customers/:customerId" element={<CustomerDetailPage />} />
               <Route path="tasks" element={<TaskQueuePage />} />
               <Route path="imports" element={<ImportPage />} />

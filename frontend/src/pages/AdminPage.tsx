@@ -102,6 +102,9 @@ export function AdminPage() {
         </ul>
       )}
 
+      <h3>Planner</h3>
+      <ProviderStatusCard />
+
       <h3>Users</h3>
       {usersQuery.isLoading && <p>Loading…</p>}
       {usersQuery.isError && <p role="alert">Could not load users.</p>}
@@ -224,5 +227,44 @@ export function AdminPage() {
         {formError && <p role="alert">{formError}</p>}
       </form>
     </section>
+  );
+}
+
+interface ProviderStatus {
+  default_mode: string;
+  live_configured: boolean;
+  live_model: string;
+  modes: string[];
+}
+
+function ProviderStatusCard() {
+  const apiFetch = useApi();
+  const query = useQuery({
+    queryKey: ["admin-provider-status"],
+    queryFn: () => apiFetch<ProviderStatus>("/api/v1/admin/provider-status"),
+  });
+  if (query.isLoading) return <p>Loading…</p>;
+  if (query.isError || !query.data) return <p role="alert">Could not load provider status.</p>;
+  const s = query.data;
+  return (
+    <div className="card">
+      <dl style={{ display: "grid", gridTemplateColumns: "max-content auto", gap: "6px 16px", margin: 0 }}>
+        <dt>Default investigation mode</dt>
+        <dd>{s.default_mode}</dd>
+        <dt>Live planner (Anthropic)</dt>
+        <dd>
+          {s.live_configured ? (
+            <span className="badge badge--ok">key configured</span>
+          ) : (
+            <span className="badge badge--warn">not configured; live mode falls back to demo</span>
+          )}
+        </dd>
+        <dt>Model</dt>
+        <dd>{s.live_model}</dd>
+      </dl>
+      <p className="page-subtitle" style={{ marginBottom: 0 }}>
+        Read-only. The key itself is never shown here; it is set in the backend environment.
+      </p>
+    </div>
   );
 }

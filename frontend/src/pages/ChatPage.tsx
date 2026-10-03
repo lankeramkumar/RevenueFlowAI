@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { useMe } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
+import { useAuth } from "react-oidc-context";
+import { ApiError } from "../api/client";
+import { streamPost } from "../api/stream";
 import { cellStyle, numericCellStyle, tableStyle } from "../ui/tableStyles";
 
 interface Evidence {
@@ -318,18 +321,39 @@ export function ChatPage() {
       ? { kind: "user", key: `h-${i}`, text: m.content }
       : { kind: "assistant", key: `h-${i}`, data: m },
   );
+  const auth = useAuth();
+  const abortRef = useRef<AbortController | null>(null);
+  const [progress, setProgress] = useState<{ plan: string[]; done: string[] }>({ plan: [], done: [] });
+
   const ask = useMutation({
-    mutationFn: (q: string) =>
-      apiFetch<InvestigateResponse>("/api/v1/chat/investigate", {
-        method: "POST",
-        body: JSON.stringify({
+    mutationFn: async (q: string): Promise<InvestigateResponse> => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setProgress({ plan: [], done: [] });
+      let result: InvestigateResponse | null = null;
+      await streamPost(
+        "/api/v1/chat/investigate/stream",
+        {
           business_unit_id: businessUnitId,
           question: q,
           conversation_id: conversationId,
           customer_id_hint: customerHint.trim() || undefined,
           mode,
-        }),
-      }),
+        },
+        auth.user?.access_token,
+        (event) => {
+          if (event.event === "plan") setProgress((p) => ({ ...p, plan: event.dispatches }));
+          if (event.event === "specialist") {
+            setProgress((p) => ({ ...p, done: [...p.done, `${event.domain}: ${event.status}`] }));
+          }
+          if (event.event === "result") result = event.data as InvestigateResponse;
+          if (event.event === "error") throw new ApiError(event.status, "investigation_failed", String(event.detail));
+        },
+        controller.signal,
+      );
+      if (!result) throw new Error("The investigation ended without a result.");
+      return result;
+    },
     onMutate: (q) => {
       setPending([{ kind: "user", key: "pending-user", text: q }]);
       setDraft("");
@@ -348,6 +372,10 @@ export function ChatPage() {
       if (id !== conversationId) setSearchParams({ c: id });
     },
     onError: () => {
+      if (abortRef.current?.signal.aborted) {
+        setPending([{ kind: "error", key: "pending-stopped", text: "Stopped. Nothing was saved." }]);
+        return;
+      }
       setPending([{
         kind: "error",
         key: "pending-error",
@@ -451,7 +479,25 @@ export function ChatPage() {
         })}
 
         {ask.isPending && (
-          <div style={{ alignSelf: "flex-start", color: "#64748b", fontSize: 13 }}>Investigating…</div>
+          <div className="card" style={{ alignSelf: "flex-start", fontSize: 13, minWidth: 280 }}>
+            <div style={{ color: "var(--ink-faint)", marginBottom: 6 }}>Investigating…</div>
+            {progress.plan.map((d) => {
+              const domain = d.split(":")[0];
+              const finished = progress.done.find((x) => x.startsWith(`${domain}:`));
+              return (
+                <div key={d} style={{ display: "flex", gap: 8, padding: "2px 0" }}>
+                  <span>{finished ? "✓" : "…"}</span>
+                  <span>
+                    {d.replace(":", " · ")}
+                    {finished ? ` (${finished.split(": ")[1]})` : ""}
+                  </span>
+                </div>
+              );
+            })}
+            <button type="button" onClick={() => abortRef.current?.abort()} style={{ marginTop: 8 }}>
+              Stop
+            </button>
+          </div>
         )}
         <div ref={threadEnd} />
       </div>

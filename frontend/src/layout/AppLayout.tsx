@@ -67,6 +67,7 @@ export function AppLayout() {
             <NavLink to="/workbench">Exceptions</NavLink>
             <NavLink to="/customers">Customers</NavLink>
             <NavLink to="/tasks">Tasks</NavLink>
+            <NavLink to="/documents">Documents</NavLink>
             {me.role === "admin" && <NavLink to="/imports">Import</NavLink>}
             {me.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
           </nav>

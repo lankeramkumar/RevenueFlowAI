@@ -146,3 +146,14 @@ async def test_non_admin_role_is_rejected(db_session, tenant):
     finally:
         app.dependency_overrides.clear()
     assert response.status_code == 403
+
+
+async def test_provider_status_reports_configuration_without_exposing_the_key(admin_client):
+    async with admin_client as client:
+        response = await client.get("/api/v1/admin/provider-status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["default_mode"] == "demo"
+    assert set(body["modes"]) == {"demo", "live"}
+    assert isinstance(body["live_configured"], bool)
+    assert "sk-ant" not in response.text

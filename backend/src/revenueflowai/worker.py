@@ -6,9 +6,13 @@ durability requirements and intent.md's import lifecycle.
 """
 
 import asyncio
+import http.server
 import logging
+import os
 import socket
 import tempfile
+import threading
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -20,6 +24,7 @@ from revenueflowai.config import get_settings
 from revenueflowai.db import AsyncSessionLocal
 from revenueflowai.ingestion.activation import validate_and_activate
 from revenueflowai.models.ingestion import ImportJob, ImportJobFile
+from revenueflowai.observability import registry
 from revenueflowai.storage.s3_store import S3CompatibleObjectStore
 
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +34,7 @@ WORKER_ID = f"{socket.gethostname()}-{uuid.uuid4().hex[:8]}"
 LEASE_DURATION = timedelta(minutes=5)
 POLL_INTERVAL_SECONDS = 2
 MAX_ATTEMPTS = 5
+METRICS_PORT = int(os.environ.get("WORKER_METRICS_PORT", "9100"))
 
 
 async def claim_next_job() -> uuid.UUID | None:
@@ -74,6 +80,7 @@ async def claim_next_job() -> uuid.UUID | None:
 
 
 async def process_job(job_id: uuid.UUID) -> None:
+    started = time.perf_counter()
     settings = get_settings()
     store = S3CompatibleObjectStore()
 
@@ -100,18 +107,45 @@ async def process_job(job_id: uuid.UUID) -> None:
                 "import_job.processed", job_id=str(job_id), status=job.status,
                 valid=outcome.validation.is_valid, error_count=len(outcome.validation.errors),
             )
+            registry.inc("import_jobs_total", outcome=job.status)
+            registry.observe("import_job_duration_seconds", time.perf_counter() - started)
+
+
+def _serve_metrics(port: int = METRICS_PORT) -> http.server.ThreadingHTTPServer:
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            if self.path != "/metrics":
+                self.send_response(404)
+                self.end_headers()
+                return
+            body = registry.render().encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:
+            return
+
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
 
 
 async def run_forever() -> None:
     log.info("worker.started", worker=WORKER_ID)
+    _serve_metrics()
     while True:
         job_id = await claim_next_job()
         if job_id is None:
             await asyncio.sleep(POLL_INTERVAL_SECONDS)
             continue
+        registry.inc("import_jobs_claimed_total")
         try:
             await process_job(job_id)
         except Exception:
+            registry.inc("import_jobs_total", outcome="failed")
             log.exception("import_job.failed", job_id=str(job_id))
 
 

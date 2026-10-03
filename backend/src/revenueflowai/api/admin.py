@@ -213,3 +213,25 @@ async def update_user(
     await session.commit()
     await session.refresh(target, attribute_names=["granted_business_units"])
     return _to_user_response(target)
+
+
+class ProviderStatusResponse(BaseModel):
+    default_mode: str
+    live_configured: bool
+    live_model: str
+    modes: list[str]
+
+
+@router.get("/provider-status", response_model=ProviderStatusResponse)
+async def provider_status(
+    app_user: AppUser = Depends(require_role(*ADMIN_ONLY)),
+) -> ProviderStatusResponse:
+    from revenueflowai.agents.providers.live import PLANNER_MODEL
+    from revenueflowai.config import get_settings
+
+    return ProviderStatusResponse(
+        default_mode="demo",
+        live_configured=bool(get_settings().anthropic_api_key),
+        live_model=PLANNER_MODEL,
+        modes=["demo", "live"],
+    )

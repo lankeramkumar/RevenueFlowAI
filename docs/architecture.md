@@ -99,7 +99,7 @@ per-file column reference.
 ## What is not yet built
 
 - SSE/streaming chat responses (current endpoint is synchronous)
-- Document evidence (TXT/PDF) ingestion/retrieval
+- Document evidence (TXT/PDF): upload, extraction, retrieval, and evidence drill-down (`api/documents.py`, `documents/`)
 - Independent/A2A-protocol agent deployment (explicitly out of scope for this release)
 - Full observability (correlation IDs, metrics export)
 

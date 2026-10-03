@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     s3_secret_key: str = Field(default="test")
     s3_bucket_raw_imports: str = Field(default="raw-imports")
     s3_bucket_exports: str = Field(default="exports")
+    s3_bucket_documents: str = Field(default="documents")
     s3_region: str = Field(default="us-east-1")
 
     anthropic_api_key: str | None = Field(default=None)

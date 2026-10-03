@@ -136,3 +136,15 @@ citation validity. Add `--live` to run the Anthropic planner (spends tokens).
 
 **Backups and restore.** Not yet exercised. A restore drill is an open
 production gate.
+
+## Added 2026-10-03
+
+- **Worker metrics.** The import worker serves Prometheus-format metrics on
+  port 9100 (`WORKER_METRICS_PORT` to change it): `import_jobs_claimed_total`,
+  `import_jobs_total{outcome}`, and `import_job_duration_seconds`. Compose publishes
+  9100 on the host; restrict it at the network edge as for the backend.
+- **Document storage.** Uploaded files are kept in the `documents` bucket
+  (`S3_BUCKET_DOCUMENTS`). The bucket is created at API startup. Uploads are limited
+  to 10 MB and to UTF-8 text or PDF, and every upload is written to the audit log.
+- **Investigation budgets.** At most 3 specialist dispatches and 20 seconds per
+  investigation by default. An answer that hits a limit says so in its missing-data list.

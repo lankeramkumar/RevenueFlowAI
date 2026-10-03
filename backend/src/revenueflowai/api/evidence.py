@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from revenueflowai.auth.deps import assert_business_unit_access, require_role
 from revenueflowai.db import get_session
 from revenueflowai.domain.services import get_active_dataset_version
+from revenueflowai.models.documents import Document
 from revenueflowai.models.entities import (
     CreditApplication,
     Customer,
@@ -89,6 +90,8 @@ async def get_evidence_record(
     session: AsyncSession = Depends(get_session),
 ) -> EvidenceRecordResponse:
     assert_business_unit_access(app_user, business_unit_id)
+    if record_type == "document":
+        return await _document_evidence(session, app_user, business_unit_id, record_id)
     dataset = await get_active_dataset_version(session, app_user.organization_id, business_unit_id)
     if dataset is None:
         raise HTTPException(
@@ -160,3 +163,32 @@ async def get_evidence_record(
             "message": f"Unsupported record type '{record_type}'.",
         },
     )
+
+
+def record_id_uuid(value: str) -> UUID | None:
+    try:
+        return UUID(value)
+    except ValueError:
+        return None
+
+
+async def _document_evidence(
+    session: AsyncSession, app_user: AppUser, business_unit_id: UUID, record_id: str
+) -> EvidenceRecordResponse:
+    doc = (await session.execute(
+        select(Document).where(
+            Document.id == record_id_uuid(record_id),
+            Document.organization_id == app_user.organization_id,
+            Document.business_unit_id == business_unit_id,
+        )
+    )).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error_code": "evidence_not_found", "message": f"No document '{record_id}'."},
+        )
+    fields = {
+        "filename": doc.filename, "content_type": doc.content_type, "byte_size": doc.byte_size,
+        "sha256": doc.sha256, "created_at": doc.created_at.isoformat(), "text": doc.extracted_text,
+    }
+    return EvidenceRecordResponse(record_type="document", record_id=record_id, fields=fields, related=[])

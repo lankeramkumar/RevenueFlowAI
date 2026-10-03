@@ -1,14 +1,18 @@
-"""Investigation chat endpoint. Runs the Supervisor synchronously (no SSE
-yet -- tracked as a gap) and persists the conversation. intent.md: the UI
-must accurately label demo vs. live mode; never claim a live model
+"""Investigation chat endpoint. Runs the Supervisor and persists the conversation.
+intent.md: the UI must accurately label demo vs. live mode; never claim a live model
 answered when the demo provider actually did.
 """
 
+import asyncio
+import json
 import time
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,11 +127,11 @@ class InvestigateResponse(BaseModel):
     as_of_date: str
 
 
-@router.post("/investigate", response_model=InvestigateResponse)
-async def investigate(
+async def _investigate_core(
     body: InvestigateRequest,
-    app_user: AppUser = Depends(require_role(*VIEW_ROLES)),
-    session: AsyncSession = Depends(get_session),
+    app_user: AppUser,
+    session: AsyncSession,
+    on_event: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
 ) -> InvestigateResponse:
     started = time.perf_counter()
     assert_business_unit_access(app_user, body.business_unit_id)
@@ -189,7 +193,7 @@ async def investigate(
     )
 
     result = await run_investigation(
-        scope, body.question, transport, planner, body.customer_id_hint, prior_entities
+        scope, body.question, transport, planner, body.customer_id_hint, prior_entities, on_event=on_event
     )
     _record_investigation(result, resolved_mode, time.perf_counter() - started, conversation.id)
 
@@ -232,6 +236,15 @@ async def investigate(
         missing_data=list(result.missing_data),
         dataset_version_id=result.dataset_version_id, as_of_date=result.as_of_date,
     )
+
+
+@router.post("/investigate", response_model=InvestigateResponse)
+async def investigate(
+    body: InvestigateRequest,
+    app_user: AppUser = Depends(require_role(*VIEW_ROLES)),
+    session: AsyncSession = Depends(get_session),
+) -> InvestigateResponse:
+    return await _investigate_core(body, app_user, session)
 
 
 class MessageOut(BaseModel):
@@ -284,3 +297,59 @@ async def list_messages(
         .all()
     )
     return [_to_message_out(m) for m in messages]
+
+
+def _sse(event: str, data: dict[str, Any]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+@router.post("/investigate/stream")
+async def investigate_stream(
+    body: InvestigateRequest,
+    request: Request,
+    app_user: AppUser = Depends(require_role(*VIEW_ROLES)),
+    session: AsyncSession = Depends(get_session),
+) -> StreamingResponse:
+    """Server-sent events: `plan`, one `specialist` per completed specialist,
+    then `result` (same body as /investigate) or `error`. If the client
+    disconnects, the investigation is cancelled before it is persisted.
+    """
+    queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    async def emit(event: dict[str, Any]) -> None:
+        await queue.put(event)
+
+    async def run() -> None:
+        try:
+            response = await _investigate_core(body, app_user, session, emit)
+            await queue.put({"type": "result", "data": response.model_dump(mode="json")})
+        except HTTPException as exc:
+            await queue.put({"type": "error", "status": exc.status_code, "detail": exc.detail})
+        except Exception:
+            log.exception("investigation.stream_failed")
+            await queue.put({"type": "error", "status": 500, "detail": "investigation_failed"})
+        finally:
+            await queue.put(None)
+
+    task = asyncio.create_task(run())
+
+    async def stream() -> AsyncIterator[str]:
+        try:
+            while True:
+                if await request.is_disconnected():
+                    task.cancel()
+                    log.info("investigation.cancelled", reason="client_disconnected")
+                    return
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=0.5)
+                except TimeoutError:
+                    continue
+                if item is None:
+                    return
+                payload = item["data"] if "data" in item else {k: v for k, v in item.items() if k != "type"}
+                yield _sse(item["type"], payload)
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})

@@ -4,8 +4,11 @@ findings. Execution is identical regardless of which planner produced the
 plan -- only the planning step differs between demo and live mode.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from revenueflowai.agents.contracts import (
@@ -18,7 +21,7 @@ from revenueflowai.agents.contracts import (
     TaskRequest,
     TrustedContext,
 )
-from revenueflowai.agents.providers.base import QuestionPlanner
+from revenueflowai.agents.providers.base import MAX_PLAN_DISPATCHES, QuestionPlanner
 from revenueflowai.agents.transport import InternalAgentTransport
 
 
@@ -47,12 +50,23 @@ def _build_context(scope: InvestigationScope, investigation_id: UUID) -> Trusted
     )
 
 
+@dataclass(frozen=True)
+class InvestigationBudget:
+    max_specialist_dispatches: int = MAX_PLAN_DISPATCHES
+    max_seconds: float = 20.0
+
+
 async def run_investigation(
     scope: InvestigationScope, question: str, transport: InternalAgentTransport,
     planner: QuestionPlanner, customer_id_hint: str | None = None,
     prior_entities: dict[str, str] | None = None,
+    budget: InvestigationBudget = InvestigationBudget(),
+    on_event: Callable[[dict[str, Any]], Awaitable[None]] | None = None,
 ) -> FinalInvestigation:
+    started = time.monotonic()
     plan = await planner.plan(question, customer_id_hint, prior_entities)
+    if on_event:
+        await on_event({"type": "plan", "dispatches": [f"{d}:{i}" for d, i in plan.dispatches]})
     as_of_str = scope.business_as_of_date.isoformat()
 
     if not plan.dispatches:
@@ -73,7 +87,14 @@ async def run_investigation(
 
     investigation_id = uuid4()
     results = []
-    for domain, intent in plan.dispatches:
+    budget_missing: list[str] = []
+    for index, (domain, intent) in enumerate(plan.dispatches):
+        if index >= budget.max_specialist_dispatches:
+            budget_missing.append(f"budget_exhausted: dispatch limit {budget.max_specialist_dispatches}")
+            break
+        if time.monotonic() - started >= budget.max_seconds:
+            budget_missing.append(f"budget_exhausted: time limit {budget.max_seconds:g}s")
+            break
         context = _build_context(scope, investigation_id)
         task = TaskRequest(
             task_id=context.task_id, domain=domain, intent=intent,
@@ -81,6 +102,8 @@ async def run_investigation(
         )
         result = await transport.dispatch(task)
         results.append(result)
+        if on_event:
+            await on_event({"type": "specialist", "domain": result.domain, "status": result.status})
 
     seen_finding_keys: set[str] = set()
     all_findings = []
@@ -122,6 +145,6 @@ async def run_investigation(
         dispatches=tuple(f"{d}:{i}" for d, i in plan.dispatches), entities=dict(plan.entities),
         specialist_status=specialist_status,
         evidence=tuple(all_evidence), recommended_actions=tuple(all_actions),
-        missing_data=tuple(all_missing),
+        missing_data=tuple(all_missing + budget_missing),
         dataset_version_id=scope.dataset_version_id, as_of_date=as_of_str,
     )
