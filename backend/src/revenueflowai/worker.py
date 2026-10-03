@@ -42,7 +42,13 @@ async def claim_next_job() -> uuid.UUID | None:
             stmt = (
                 select(ImportJob.id)
                 .where(
-                    ImportJob.status == "queued",
+                    # "queued" is a fresh job; "staging" with an expired
+                    # lease is one a worker claimed and then crashed before
+                    # finishing -- both are reclaimable. Without the
+                    # "staging" branch, a crashed job would sit at status=
+                    # "staging" forever: nothing ever moves it back to
+                    # "queued", so it would never be picked up again.
+                    ImportJob.status.in_(("queued", "staging")),
                     (ImportJob.lease_expires_at.is_(None)) | (ImportJob.lease_expires_at < now),
                     ImportJob.attempt_count < MAX_ATTEMPTS,
                 )
