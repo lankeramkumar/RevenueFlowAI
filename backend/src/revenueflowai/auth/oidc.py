@@ -53,7 +53,11 @@ def validate_token(token: str) -> AuthenticatedPrincipal:
             token,
             jwks,
             issuer=settings.oidc_issuer,
-            options={"leeway": settings.jwt_leeway_seconds, "verify_aud": False},
+            options={
+                "leeway": settings.jwt_leeway_seconds,
+                "verify_aud": False,
+                "verify_at_hash": False,  # ID tokens carry at_hash; the access token is not sent with them
+            },
         )
         _check_audience(claims, settings.oidc_audience)
     except JWTError as exc:
