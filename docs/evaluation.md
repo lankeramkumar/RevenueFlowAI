@@ -27,7 +27,10 @@ coverage with independently-authored expected values
 (`tests/unit/test_domain_*.py`) but no CSV-bundle-level fixture. S03, S05,
 and S07 additionally have direct-ORM-insert integration coverage
 (`tests/integration/test_domain_sql_services.py`) that bypasses the CSV
-generator. `demo`, `load`, and `invalid` profiles don't exist yet.
+generator. `demo`, `load`, and `invalid` profiles are now implemented
+(see `tests/unit/test_load_profile.py`,
+`tests/integration/test_demo_profile_activation.py`, and the `invalid`
+fixture tests) and exercised against real validation/activation.
 
 ## Reproducibility
 
@@ -45,7 +48,7 @@ Run from `backend/`:
 .venv\Scripts\python.exe -m mypy src
 ```
 
-- **61/61 backend tests pass** (unit + integration against a live
+- **97/97 backend tests pass** (unit + integration against a live
   Postgres instance — the integration suite auto-skips if no database is
   reachable, so it degrades gracefully without Docker).
 - `ruff check .` and `mypy src`: clean, 0 issues.
@@ -87,11 +90,25 @@ evaluation harness that doesn't exist yet (tracked as a Milestone 6 gap).
 
 ## Performance
 
-**Not measured.** intent.md's targets (100,000-row bundle import within 2
-minutes; paginated screens p95 under 2 seconds at 10 concurrent users on
-a documented reference machine) require the `load` generator profile,
-which doesn't exist yet, and a load-testing pass that hasn't been run.
-Reporting this as unmeasured rather than asserting it passes.
+**Import target: measured, passes.** intent.md: "a 100,000-row bundle
+across files completes within two minutes." The `load` generator profile
+produced a 96,666-row bundle (its sizing logic targets, not guarantees,
+an exact row count — see `seed/load.py`) in 0.33s, and
+`ingestion.activation.validate_and_activate` processed the full bundle
+(validation + load into Postgres) in **17.98 seconds** (5,377 rows/sec)
+— well under the 2-minute target. Measured directly against the real
+`validate_and_activate` code path (not a simulation) on the build
+machine: Windows 11, Postgres 16 in Docker via WSL2, no other load on
+the system. Not yet measured through the full HTTP upload → worker →
+activation path (this measurement calls the activation function
+directly) or on a documented "reference machine" in the formal sense
+intent.md implies — this is one real data point, not a calibrated
+benchmark.
+
+**Paginated-screen target: not measured.** intent.md's "p95 under 2
+seconds at 10 concurrent users" requires a load-testing tool driving
+concurrent HTTP requests against a running backend, which hasn't been
+set up. Reporting this as unmeasured rather than asserting it passes.
 
 ## Known limitations
 

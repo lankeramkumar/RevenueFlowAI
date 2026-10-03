@@ -93,7 +93,7 @@ alongside the first real import job.
 | `small` profile: 16 of 17 fixed scenarios | ✅ done (S01–S14, S16–S17; S15 is a direct cross-org test instead, not a generator scenario) |
 | `invalid` profile: 9 deliberate-defect fixtures | ✅ done — 2 new validator checks added (`excessive_precision`, `invalid_date`) plus a new `mismatched_application_currency` cross-file check; all 9 verified to surface their labeled error code via the real validator |
 | `demo` profile: 30+ customers, 200+ orders, realistic mix | ✅ done — 32 customers/210 orders, both currencies, seed-reproducible, **verified against live Postgres including cross-org isolation** (identical bundle uploaded into two real organizations, confirmed no leakage) |
-| `load` profile (100,000-row scale) | 🔲 not started |
+| `load` profile (100,000-row scale) | ✅ done — `seed/load.py` reuses the `demo` generator's realistic-mix logic at scale (distinct `LOAD-` ID prefix, seed-reproducible, ±20% of requested row count — exact count isn't achievable given the branching generation logic). Real-measured: a 96,666-row bundle (targeting 100,000) validated+activated against live Postgres in 17.98s (5,377 rows/sec), well under intent.md's 2-minute target. 3 new unit tests (`test_load_profile.py`) |
 
 **This closes the first genuine vertical slice** the build plan called
 for: a real browser login → authenticated API upload → durable worker
@@ -222,9 +222,10 @@ matrix, remaining doc deliverables, final `docs/acceptance-report.md`.
 
 ## Risks and open questions
 
-- `load` generator profile (100,000-row scale) doesn't exist yet —
-  needed for intent.md's performance-target measurement (criterion #9's
-  performance claim can't be made without it).
+- ~~`load` generator profile doesn't exist yet~~ — now built and
+  performance-measured (96,666 rows activated in 17.98s); the
+  paginated-screen half of criterion #9's performance target (p95 under
+  2s at 10 concurrent users) is still unmeasured.
 - SSE/streaming chat, cancellation, and budget-exhaustion behavior are
   unimplemented — the chat endpoint is synchronous request/response today.
 - Document evidence (TXT/PDF) is entirely unbuilt.

@@ -16,8 +16,9 @@ from pathlib import Path
 
 import typer
 
-from revenueflowai.seed.demo import generate_demo_bundle
+from revenueflowai.seed.demo import DemoBundle, generate_demo_bundle
 from revenueflowai.seed.invalid import generate_invalid_bundles
+from revenueflowai.seed.load import generate_load_bundle
 from revenueflowai.seed.scenarios import IMPLEMENTED_SCENARIOS
 from revenueflowai.seed.schema import CSV_COLUMNS
 
@@ -96,10 +97,8 @@ def _generate_small(seed: int, as_of_date: date, out_dir: Path) -> None:
     )
 
 
-def _generate_demo(seed: int, as_of_date: date, out_dir: Path) -> None:
+def _write_bundle(bundle: DemoBundle, out_dir: Path, seed: int, as_of_date: date, profile: str) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
-    bundle = generate_demo_bundle(seed, as_of_date)
-
     file_hashes = {}
     file_row_counts = {}
     for filename, columns in CSV_COLUMNS.items():
@@ -115,19 +114,36 @@ def _generate_demo(seed: int, as_of_date: date, out_dir: Path) -> None:
 
     manifest = {
         "generator_version": GENERATOR_VERSION,
-        "profile": "demo",
+        "profile": profile,
         "seed": seed,
         "as_of_date": as_of_date.isoformat(),
         "snapshot_date": as_of_date.isoformat(),
         "status_vocabulary": STATUS_VOCABULARY,
         "file_row_counts": file_row_counts,
         "file_sha256": file_hashes,
+        "total_rows": sum(file_row_counts.values()),
     }
     (out_dir / "dataset_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    return file_row_counts
 
+
+def _generate_demo(seed: int, as_of_date: date, out_dir: Path) -> None:
+    bundle = generate_demo_bundle(seed, as_of_date)
+    counts = _write_bundle(bundle, out_dir, seed, as_of_date, "demo")
     typer.echo(
         f"Wrote {len(CSV_COLUMNS)} CSV files to {out_dir}: "
-        f"{file_row_counts.get('customers.csv', 0)} customers, {file_row_counts.get('orders.csv', 0)} orders."
+        f"{counts.get('customers.csv', 0)} customers, {counts.get('orders.csv', 0)} orders."
+    )
+
+
+def _generate_load(seed: int, as_of_date: date, out_dir: Path, total_rows: int) -> None:
+    bundle = generate_load_bundle(seed, as_of_date, total_rows)
+    counts = _write_bundle(bundle, out_dir, seed, as_of_date, "load")
+    actual_total = sum(counts.values())
+    typer.echo(
+        f"Wrote {len(CSV_COLUMNS)} CSV files to {out_dir}: {actual_total} total rows "
+        f"(requested ~{total_rows}), {counts.get('customers.csv', 0)} customers, "
+        f"{counts.get('orders.csv', 0)} orders."
     )
 
 
@@ -164,12 +180,10 @@ def generate(
         _generate_invalid(seed, as_of_date, out_dir)
     elif profile == "demo":
         _generate_demo(seed, as_of_date, out_dir)
+    elif profile == "load":
+        _generate_load(seed, as_of_date, out_dir, total_rows)
     else:
-        typer.echo(
-            f"Profile '{profile}' is not yet implemented ('small', 'invalid', and 'demo' are done; "
-            "'load' is tracked in docs/implementation-plan.md).",
-            err=True,
-        )
+        typer.echo(f"Unknown profile '{profile}'. Supported: small, demo, load, invalid.", err=True)
         raise typer.Exit(code=2)
 
 

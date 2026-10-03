@@ -37,11 +37,14 @@ class DemoBundle:
         self.rows.setdefault(filename, []).append(row)
 
 
-def generate_demo_bundle(seed: int, as_of: date) -> DemoBundle:
+def generate_demo_bundle(
+    seed: int, as_of: date,
+    customer_count: int = CUSTOMER_COUNT, order_count: int = ORDER_COUNT, id_prefix: str = "DEMO",
+) -> DemoBundle:
     rng = random.Random(seed)
     bundle = DemoBundle()
 
-    customer_ids = [f"DEMO-CUST-{i:03d}" for i in range(1, CUSTOMER_COUNT + 1)]
+    customer_ids = [f"{id_prefix}-CUST-{i:06d}" for i in range(1, customer_count + 1)]
     customer_currency = {cid: ("EUR" if i % 3 == 0 else "USD") for i, cid in enumerate(customer_ids)}
 
     customer_terms: dict[str, int] = {}
@@ -57,8 +60,8 @@ def generate_demo_bundle(seed: int, as_of: date) -> DemoBundle:
     hold_reasons = ["CREDIT_LIMIT", "MISSING_SHIP_TO", "FRAUD_REVIEW", "QUALITY_HOLD"]
     dispute_reasons = ["Pricing discrepancy", "Quantity discrepancy on delivery", "Damaged goods claim"]
 
-    for order_index in range(1, ORDER_COUNT + 1):
-        order_id = f"DEMO-ORD-{order_index:04d}"
+    for order_index in range(1, order_count + 1):
+        order_id = f"{id_prefix}-ORD-{order_index:06d}"
         customer_id = rng.choice(customer_ids)
         currency = customer_currency[customer_id]
         order_date = as_of - timedelta(days=rng.randint(5, 180))

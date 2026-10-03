@@ -101,11 +101,16 @@ async def test_demo_bundle_isolated_across_two_organizations(db_session, tmp_pat
 
     from sqlalchemy import select
 
+    target_external_id = "DEMO-CUST-000001"
     customers_a = (await db_session.execute(
-        select(Customer).where(Customer.organization_id == org_a.id, Customer.external_id == "DEMO-CUST-001")
+        select(Customer).where(
+            Customer.organization_id == org_a.id, Customer.external_id == target_external_id
+        )
     )).scalars().all()
     customers_b = (await db_session.execute(
-        select(Customer).where(Customer.organization_id == org_b.id, Customer.external_id == "DEMO-CUST-001")
+        select(Customer).where(
+            Customer.organization_id == org_b.id, Customer.external_id == target_external_id
+        )
     )).scalars().all()
 
     assert len(customers_a) == 1
