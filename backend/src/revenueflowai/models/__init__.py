@@ -1,5 +1,6 @@
 """SQLAlchemy models. Import this module to register all tables on Base.metadata."""
 
+from revenueflowai.models.chat import ChatMessage, Conversation
 from revenueflowai.models.entities import (
     CreditApplication,
     CreditMemo,
@@ -27,6 +28,8 @@ from revenueflowai.models.tenancy import AppUser, BusinessUnit, Organization
 __all__ = [
     "FollowUpTask",
     "TaskComment",
+    "Conversation",
+    "ChatMessage",
     "Organization",
     "BusinessUnit",
     "AppUser",

@@ -58,6 +58,7 @@ export function AppLayout() {
           <strong>RevenueFlow AI</strong>
           <nav style={{ display: "flex", gap: "1rem" }}>
             <Link to="/">Dashboard</Link>
+            <Link to="/chat">Investigate</Link>
             <Link to="/workbench">Exceptions</Link>
             <Link to="/tasks">Tasks</Link>
             {me.role === "admin" && <Link to="/imports">Import</Link>}

@@ -8,20 +8,21 @@ import re
 from revenueflowai.agents.contracts import Domain
 from revenueflowai.agents.providers.base import InvestigationPlan, QuestionPlanner, validate_plan
 
-_ID_PATTERNS = {
-    "invoice_id": re.compile(r"\bINV-[\w-]+\b", re.IGNORECASE),
-    "receipt_id": re.compile(r"\bRCP-[\w-]+\b", re.IGNORECASE),
-    "order_id": re.compile(r"\bORD-[\w-]+\b", re.IGNORECASE),
-    "customer_id": re.compile(r"\bCUST-[\w-]+\b", re.IGNORECASE),
-}
+_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+# Matched as a whole hyphen-delimited segment, so both intent.md-style IDs
+# (RCP-2001) and scenario-prefixed synthetic IDs (S01-RCP, S09-INV-USD)
+# resolve to the same entity key.
+_SEGMENT_TO_FIELD = {"INV": "invoice_id", "RCP": "receipt_id", "ORD": "order_id", "CUST": "customer_id"}
 
 
 def extract_entities(question: str) -> dict[str, str]:
     found: dict[str, str] = {}
-    for key, pattern in _ID_PATTERNS.items():
-        match = pattern.search(question)
-        if match:
-            found[key] = match.group(0).upper()
+    for raw_token in _TOKEN_PATTERN.findall(question):
+        upper = raw_token.upper()
+        segments = upper.split("-")
+        for segment, field in _SEGMENT_TO_FIELD.items():
+            if segment in segments and field not in found:
+                found[field] = upper
     return found
 
 

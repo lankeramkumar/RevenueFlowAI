@@ -3,6 +3,7 @@ import { AuthProvider } from "react-oidc-context";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { oidcConfig } from "./auth/oidcConfig";
 import { AppLayout } from "./layout/AppLayout";
+import { ChatPage } from "./pages/ChatPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ExceptionWorkbenchPage } from "./pages/ExceptionWorkbenchPage";
 import { ImportPage } from "./pages/ImportPage";
@@ -18,6 +19,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
+              <Route path="chat" element={<ChatPage />} />
               <Route path="workbench" element={<ExceptionWorkbenchPage />} />
               <Route path="tasks" element={<TaskQueuePage />} />
               <Route path="imports" element={<ImportPage />} />

@@ -175,9 +175,23 @@ be protected. Fixed across all 12 affected columns.
 | Action/task queue (create, assign, approve/reject/resolve, comments, audit) | ✅ **verified live end-to-end**: created a real task through the browser UI, approved it (role-gated to admin/approver via `DECISION_ROLES`), and confirmed both `task.created` and `task.transitioned` rows landed in the real `audit_events` table in Postgres — this also closes the "audit event writing" gap the acceptance report flagged. Backed by `models/tasks.py` (new migration `e85aa0753f3f`), `api/tasks.py`, `frontend/src/pages/TaskQueuePage.tsx`. Assignment UI and per-task comment thread UI are not built yet (API supports comments; no screen for them) |
 | Administration screens (scopes, thresholds, currencies, retention, provider status) | 🔲 not started |
 
-### 5. Investigation — not started
-Supervisor + Order/AR/Cash Application specialists, typed contracts,
-Anthropic provider + demo provider, persisted chat/SSE, document evidence.
+### 5. Investigation — core built and verified live
+
+| Item | Status |
+|---|---|
+| Typed read-only tools (9 tools wrapping the SQL domain services) | ✅ done (`agents/tools.py`) |
+| Order/AR/Cash specialist handlers (own tool allowlist, typed contract) | ✅ **verified live**: all three dispatch and return correct findings against real uploaded data |
+| Demo planner (regex-based, no API key) | ✅ **verified live**, including a real bug found and fixed: initial regex only matched bare IDs (`RCP-2001`), not scenario-prefixed synthetic IDs (`S01-RCP`) — broadened to segment-based matching; 4 new unit tests |
+| Live planner (real Anthropic call, forced tool-choice classification) | ✅ **verified live with real API calls** (not mocked): free-form phrasing the demo regex cannot match ("What does our AR aging look like right now across currencies?", "I got a payment in... The receipt ID is S01-RCP") was correctly classified and dispatched by Claude. Claude only selects domain/intent and extracts entity IDs — never computes a number or constructs a citation; `validate_plan` rejects anything outside the known domain/intent vocabulary before it reaches a specialist |
+| Supervisor (dispatch, dedupe findings/evidence, aggregate) | ✅ **verified live**, including real cross-domain dispatch (customer-summary question correctly fanned out to Order+AR+Cash, Order honestly reported no handling rather than fabricating) |
+| Chat API (`POST /api/v1/chat/investigate`, `GET /{id}/messages`) + persistence | ✅ **verified live**: conversations and messages (including specialist_status/evidence/missing_data) persist to Postgres |
+| Chat UI | ✅ **verified live in a browser**: clicked a suggested question, got a correct real answer with specialist attribution, screenshot/text-confirmed |
+| SSE streaming / progress events | 🔲 not started — current endpoint is synchronous request/response |
+| Cancellation, per-turn budget enforcement (beyond the fixed defaults set per task) | 🔲 not started |
+| Document evidence (TXT/PDF upload/retrieval) | 🔲 not started |
+| Tests | 8 new tests: `tests/unit/test_demo_entity_extraction.py` (4) + `tests/integration/test_chat_investigation.py` (4, against live Postgres with real generated/activated data). The live Anthropic planner is verified manually against the running stack (shown above) rather than in automated tests, since it costs real tokens on every run — consistent with intent.md's "Keep live API tests opt-in." |
+
+**A second real bug found while testing live**: the `aging_summary` and `customer_summary` specialist branches originally only produced `Metric` objects, not `Finding` statements — so a successful result with real numbers produced an empty-looking summary ("No findings were returned"). Fixed by adding a `Finding` alongside each `Metric`; re-verified live before and after (the before-state is a good example of why live verification catches things unit tests on handler logic alone would not).
 
 ### 6. Hardening & handoff — not started
 Scope-isolation tests, worker crash recovery, prompt-injection fixtures,

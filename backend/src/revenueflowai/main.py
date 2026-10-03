@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from revenueflowai.api.chat import router as chat_router
 from revenueflowai.api.dashboard import router as dashboard_router
 from revenueflowai.api.health import router as health_router
 from revenueflowai.api.imports import router as imports_router
@@ -48,6 +49,7 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(chat_router)
 app.include_router(imports_router)
 app.include_router(dashboard_router)
 app.include_router(me_router)

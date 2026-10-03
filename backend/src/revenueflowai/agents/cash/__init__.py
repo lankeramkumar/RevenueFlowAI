@@ -101,6 +101,11 @@ def make_cash_handler(session: AsyncSession) -> SpecialistHandler:
                         scope=f"customer:{customer_id}",
                         calculation_provenance="agents.tools.get_customer_summary",
                     ))
+                    findings.append(Finding(
+                        key=f"unapplied:{customer_id}:{currency}",
+                        statement=f"Customer {customer_id} has {amount} {currency} unapplied cash.",
+                        evidence=(),
+                    ))
                 if not data["unapplied_cash_by_currency"]:
                     findings.append(Finding(
                         key=f"no_unapplied_cash:{customer_id}",

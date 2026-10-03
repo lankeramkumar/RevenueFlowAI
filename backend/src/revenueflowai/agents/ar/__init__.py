@@ -91,6 +91,11 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                             scope=f"bucket:{bucket}",
                             calculation_provenance="domain.services.compute_aging_summary",
                         ))
+                        findings.append(Finding(
+                            key=f"aging:{currency}:{bucket}",
+                            statement=f"{total} {currency} is in the '{bucket}' aging bucket.",
+                            evidence=(),
+                        ))
             if not metrics:
                 findings.append(Finding(
                     key="no_open_balances", statement="No open invoice balances.", evidence=(),
@@ -120,6 +125,11 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                         name="outstanding_balance", value=amount, unit_or_currency=currency,
                         scope=f"customer:{customer_id}",
                         calculation_provenance="agents.tools.get_customer_summary",
+                    ))
+                    findings.append(Finding(
+                        key=f"outstanding:{customer_id}:{currency}",
+                        statement=f"Customer {customer_id} has {amount} {currency} outstanding.",
+                        evidence=evidence,
                     ))
                 findings.append(Finding(
                     key=f"disputes:{customer_id}",
