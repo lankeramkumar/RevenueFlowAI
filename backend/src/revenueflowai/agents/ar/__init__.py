@@ -16,6 +16,8 @@ from revenueflowai.agents.tools import (
 )
 from revenueflowai.agents.transport import SpecialistHandler
 
+MAX_AGGREGATE_CITATIONS = 50
+
 
 def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
     async def handler(task: TaskRequest) -> SpecialistResult:
@@ -88,6 +90,8 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
             for currency, buckets in data["totals_by_currency_bucket"].items():
                 for bucket, total in buckets.items():
                     if total != "0":
+                        invoice_ids = data["invoices_by_currency_bucket"].get(currency, {}).get(bucket, [])
+                        cited = invoice_ids[:MAX_AGGREGATE_CITATIONS]
                         metrics.append(Metric(
                             name="aging_total", value=total, unit_or_currency=currency,
                             scope=f"bucket:{bucket}",
@@ -95,8 +99,17 @@ def make_ar_handler(session: AsyncSession) -> SpecialistHandler:
                         ))
                         findings.append(Finding(
                             key=f"aging:{currency}:{bucket}",
-                            statement=f"{money(total)} {currency} is in the '{bucket}' aging bucket.",
-                            evidence=(),
+                            statement=(
+                                f"{money(total)} {currency} is in the '{bucket}' aging bucket "
+                                f"across {len(invoice_ids)} invoice(s)."
+                            ),
+                            evidence=tuple(
+                                EvidenceReference(
+                                    source_type="database_record", record_type="invoice",
+                                    record_id=inv_id, dataset_version_id=ctx.dataset_version_id,
+                                )
+                                for inv_id in cited
+                            ),
                         ))
             if not metrics:
                 findings.append(Finding(

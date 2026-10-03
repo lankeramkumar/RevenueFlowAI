@@ -28,6 +28,7 @@ class TokenValidationError(Exception):
 class AuthenticatedPrincipal:
     subject: str
     email: str
+    email_verified: bool
     display_name: str
     realm_roles: tuple[str, ...]
 
@@ -66,6 +67,7 @@ def validate_token(token: str) -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         subject=claims["sub"],
         email=claims.get("email", ""),
+        email_verified=bool(claims.get("email_verified", False)),
         display_name=claims.get("name", claims.get("preferred_username", claims["sub"])),
         realm_roles=roles,
     )

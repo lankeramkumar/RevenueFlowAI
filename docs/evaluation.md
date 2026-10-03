@@ -48,7 +48,7 @@ Run from `backend/`:
 .venv\Scripts\python.exe -m mypy src
 ```
 
-- **97/97 backend tests pass** (unit + integration against a live
+- **148 backend tests pass (as of 2026-10-03)** (unit + integration against a live
   Postgres instance — the integration suite auto-skips if no database is
   reachable, so it degrades gracefully without Docker).
 - `ruff check .` and `mypy src`: clean, 0 issues.
@@ -122,3 +122,42 @@ set up. Reporting this as unmeasured rather than asserting it passes.
 - Live-mode planning is a single bounded classification call, not an
   open-ended tool-calling loop — see `docs/architecture.md` for why this
   is an explicit simplification, not a hidden gap.
+
+## Investigation evals (2026-10-03)
+
+`python -m revenueflowai.evals` runs ten hand-specified cases
+(`backend/src/revenueflowai/evals/cases.py`) through the real Supervisor and
+specialists against an activated dataset. Each case is scored on routing
+(exact domain:intent set), entities, required finding text, abstention
+(no fabricated findings, reason recorded), and citation validity (every
+evidence reference resolves to a stored record). Exit status is 1 below the
+thresholds, so the command can gate a pipeline.
+
+| Mode | Cases | Pass rate | Citation validity | Notes |
+|---|---|---|---|---|
+| Demo (deterministic) | 10 | 1.00 | 1.00 | Enforced in CI by `tests/integration/test_evals_small_suite.py` |
+| Live (Anthropic planner, one run) | 10 | 1.00 | 1.00 | p50 ≈ 812 ms per case; n=1 run, LLM output can vary |
+
+Live mode initially failed two cases: a weather question dispatched a
+customer summary, and a prompt-injection request produced aging figures. Both
+are fixed (explicit decline and no-command rules in the planner prompt, plus a
+deterministic guard that drops customer summaries without a customer ID), with
+unit tests in `tests/unit/test_live_planner_guards.py`.
+
+Not measured: abstention and routing over a larger, adversarial question set;
+cost per investigation; and live-mode evals in CI (they are opt-in because
+they spend tokens).
+
+## Observability (2026-10-03)
+
+- Every request has an `X-Request-ID` (kept if it is a safe token, otherwise
+  generated) that is echoed back and bound to every log line for that request.
+- One structured access log per request (method, route template, status,
+  duration). Investigations log one `investigation.completed` event with mode,
+  outcome, specialists, and counts.
+- `GET /metrics` (Prometheus text): `http_requests_total`,
+  `http_request_duration_seconds`, `investigations_total{mode,outcome}`,
+  `investigation_duration_seconds`, `specialist_results_total{domain,status}`.
+  Labels use route templates, not raw paths, so cardinality stays bounded.
+- The worker has its own process and does not yet export metrics; job-level
+  metrics are a gap.

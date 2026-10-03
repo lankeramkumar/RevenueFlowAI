@@ -4,8 +4,10 @@ must accurately label demo vs. live mode; never claim a live model
 answered when the demo provider actually did.
 """
 
+import time
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -25,8 +27,29 @@ from revenueflowai.db import get_session
 from revenueflowai.domain.services import get_active_dataset_version
 from revenueflowai.models.chat import ChatMessage, Conversation
 from revenueflowai.models.tenancy import AppUser
+from revenueflowai.observability import registry
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
+log = structlog.get_logger("investigation")
+
+
+def _record_investigation(result, mode: str, elapsed: float, conversation_id: UUID) -> None:
+    if result.findings:
+        outcome = "answered"
+    elif result.missing_data:
+        outcome = "clarification_or_unsupported"
+    else:
+        outcome = "no_findings"
+    registry.inc("investigations_total", mode=mode, outcome=outcome)
+    registry.observe("investigation_duration_seconds", elapsed, mode=mode)
+    for s in result.specialist_status:
+        registry.inc("specialist_results_total", domain=s.domain, status=s.status)
+    log.info(
+        "investigation.completed", conversation_id=str(conversation_id), mode=mode, outcome=outcome,
+        specialists=[s.domain for s in result.specialist_status], findings=len(result.findings),
+        evidence=len(result.evidence), missing=len(result.missing_data),
+        duration_ms=round(elapsed * 1000, 2),
+    )
 
 VIEW_ROLES = ("admin", "analyst", "approver", "viewer")
 
@@ -106,6 +129,7 @@ async def investigate(
     app_user: AppUser = Depends(require_role(*VIEW_ROLES)),
     session: AsyncSession = Depends(get_session),
 ) -> InvestigateResponse:
+    started = time.perf_counter()
     assert_business_unit_access(app_user, body.business_unit_id)
 
     dataset_version = await get_active_dataset_version(
@@ -167,6 +191,7 @@ async def investigate(
     result = await run_investigation(
         scope, body.question, transport, planner, body.customer_id_hint, prior_entities
     )
+    _record_investigation(result, resolved_mode, time.perf_counter() - started, conversation.id)
 
     findings = [
         FindingOut(

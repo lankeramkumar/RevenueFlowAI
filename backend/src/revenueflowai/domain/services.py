@@ -5,7 +5,7 @@ in the language model."
 """
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -44,6 +44,8 @@ class AgingSummary:
     as_of_date: date
     # {currency: {bucket: total}}
     totals_by_currency_bucket: dict[str, dict[str, Decimal]]
+    # {currency: {bucket: [invoice external ids contributing to that total]}}
+    invoices_by_currency_bucket: dict[str, dict[str, list[str]]] = field(default_factory=dict)
 
 
 async def compute_aging_summary(
@@ -87,6 +89,7 @@ async def compute_aging_summary(
         )
 
     totals: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: Decimal("0")))
+    invoice_refs: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 
     for invoice in invoices:
         balance = compute_invoice_open_balance(
@@ -99,10 +102,15 @@ async def compute_aging_summary(
         days_overdue = compute_days_overdue(as_of, invoice.due_date)
         bucket = compute_aging_bucket(days_overdue)
         totals[invoice.currency][bucket] += balance
+        invoice_refs[invoice.currency][bucket].append(invoice.external_id)
 
     return AgingSummary(
         dataset_version_id=dataset_version.id,
         snapshot_date=dataset_version.snapshot_date,
         as_of_date=as_of,
         totals_by_currency_bucket={cur: dict(buckets) for cur, buckets in totals.items()},
+        invoices_by_currency_bucket={
+            cur: {bucket: list(ids) for bucket, ids in buckets.items()}
+            for cur, buckets in invoice_refs.items()
+        },
     )

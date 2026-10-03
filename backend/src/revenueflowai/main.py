@@ -19,9 +19,11 @@ from revenueflowai.api.receipts import router as receipts_router
 from revenueflowai.api.tasks import router as tasks_router
 from revenueflowai.api.templates import router as templates_router
 from revenueflowai.config import get_settings
+from revenueflowai.observability import RequestContextMiddleware, configure_logging
 from revenueflowai.storage.s3_store import S3CompatibleObjectStore
 
 settings = get_settings()
+configure_logging(json_output=settings.app_env != "development")
 log = logging.getLogger(__name__)
 
 
@@ -49,7 +51,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+app.add_middleware(RequestContextMiddleware)
 
 app.include_router(health_router)
 app.include_router(chat_router)

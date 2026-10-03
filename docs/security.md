@@ -117,3 +117,23 @@ HTTPS/domain setup, secret provisioning outside `.env` files, a backup
 restore drill, representative load testing, a formal security review, and
 business validation of the accounting/status mappings against real Oracle
 data. No public deployment or external account changes have been made.
+
+## Changes to the threat surface (2026-10-03)
+
+- **First-sign-in binding.** A pre-provisioned admin (`pending:<email>`) is
+  bound to a Keycloak subject only when the token's `email_verified` claim is
+  true. An unverified email cannot claim a pending account (tested in
+  `tests/integration/test_pending_binding_and_seed.py`).
+- **Tool and job scope.** Specialist tools called with another organization's
+  business unit return nothing, and import-job status returns 404 across
+  organizations (both tested).
+- **Prompt injection.** Live planner output is untrusted. Dispatch is limited
+  to an allowlist of domain:intent pairs, customer summaries require a
+  customer ID, and the planner prompt treats instructions inside a question as
+  data. Injection cases are in the eval suite, and the planner cannot write
+  financial records.
+- **Metrics exposure.** `/metrics` has no authentication. Acceptable only
+  behind a private network; see operations.md.
+
+Open items: no independent security review; no rate limiting; the Keycloak
+realm is a development realm (demo users, dev-mode issuer).

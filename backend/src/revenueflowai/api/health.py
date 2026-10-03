@@ -1,10 +1,12 @@
 """Liveness/readiness endpoints. No authentication — used by Compose/orchestrator healthchecks."""
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from revenueflowai.db import get_session
+from revenueflowai.observability import registry
 
 router = APIRouter(tags=["health"])
 
@@ -12,6 +14,11 @@ router = APIRouter(tags=["health"])
 @router.get("/healthz")
 async def healthz() -> dict:
     return {"status": "ok"}
+
+
+@router.get("/metrics", response_class=PlainTextResponse)
+async def metrics() -> str:
+    return registry.render()
 
 
 @router.get("/readyz")

@@ -104,3 +104,17 @@ per-file column reference.
 - Full observability (correlation IDs, metrics export)
 
 See `docs/implementation-plan.md` for the complete, currently-maintained gap list.
+
+## Components added 2026-10-03
+
+- `api/evidence.py` — resolves a chat citation (record type + ID) to its stored
+  row and linked rows in the active dataset, scoped to the caller's business unit.
+- `domain/customer_service.py` — per-customer timeline and balances.
+- `api/admin.py` — business-unit listing and user management (admin only, audited).
+- `bootstrap.py` and `demo_seed.py` — first-tenant creation and the demo seed
+  (one-shot `demo-seed` service in Compose). Users are pre-provisioned by email
+  and bound to a Keycloak subject on first verified sign-in (`auth/deps.py`).
+- `evals/` — the investigation eval suite and its CLI (`cases.py`, `runner.py`, `cli.py`).
+- `observability.py` — request IDs, structured access logs, and the in-process
+  metrics registry rendered at `/metrics`.
+- `agents/format.py` — human-readable money and quantity formatting for finding text.

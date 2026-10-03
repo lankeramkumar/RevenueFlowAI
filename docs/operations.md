@@ -109,3 +109,30 @@ secret is hardcoded. See `docs/security.md` for the full secrets posture.
 
 No public deployment or external account changes have been made or are
 authorized by this document.
+
+## Current operating procedures (2026-10-03)
+
+**First start.** `docker compose up --build` in `infra/` starts Postgres,
+LocalStack, Keycloak, the backend (applies migrations), the worker, the
+frontend, and a one-shot `demo-seed` that creates the demo organization and
+activates the demo dataset. It is idempotent: if the admin email already has
+an account, it does nothing.
+
+**First tenant in a real deployment.** Run
+`python -m revenueflowai.bootstrap --org-name ... --org-slug ... --admin-email ...`.
+The admin account is created pending and bound to the Keycloak identity on
+first sign-in, but only when Keycloak reports the email as verified.
+
+**Health and metrics.** `/healthz` (liveness), `/readyz` (database check),
+`/metrics` (Prometheus text, unauthenticated). Restrict `/metrics` to the
+internal network at the ingress; it is not behind authentication.
+
+**Logs.** JSON in any environment other than `development`. Correlate by
+`request_id`, which is also returned in the `X-Request-ID` response header.
+
+**Quality gate.** `python -m revenueflowai.evals --organization-id ...
+--business-unit-id ... --actor-user-id ...` exits 1 below 100% pass rate or
+citation validity. Add `--live` to run the Anthropic planner (spends tokens).
+
+**Backups and restore.** Not yet exercised. A restore drill is an open
+production gate.

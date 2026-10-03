@@ -46,6 +46,8 @@ async def get_current_app_user(
         .where(AppUser.oidc_subject == principal.subject)
     )
     app_user = result.scalar_one_or_none()
+    if app_user is None and principal.email and principal.email_verified:
+        app_user = await _bind_pending_user(session, principal.subject, principal.email)
     if app_user is None or not app_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -55,6 +57,33 @@ async def get_current_app_user(
             },
         )
     return app_user
+
+
+PENDING_SUBJECT_PREFIX = "pending:"
+
+
+def pending_subject_for(email: str) -> str:
+    return f"{PENDING_SUBJECT_PREFIX}{email.strip().lower()}"
+
+
+async def _bind_pending_user(session: AsyncSession, subject: str, email: str) -> AppUser | None:
+    """A user pre-provisioned by email (bootstrap or the Admin screen) gets
+    their Keycloak subject bound on first sign-in. Only the exact pending
+    subject for this verified email is matched, so no other identity can
+    claim the row.
+    """
+    pending = (
+        await session.execute(
+            select(AppUser)
+            .options(selectinload(AppUser.granted_business_units))
+            .where(AppUser.oidc_subject == pending_subject_for(email))
+        )
+    ).scalar_one_or_none()
+    if pending is None:
+        return None
+    pending.oidc_subject = subject
+    await session.commit()
+    return pending
 
 
 def require_role(*allowed_roles: str) -> Callable:

@@ -13,6 +13,7 @@ import asyncio
 import typer
 from sqlalchemy import select
 
+from revenueflowai.auth.deps import pending_subject_for
 from revenueflowai.db import AsyncSessionLocal
 from revenueflowai.models.tenancy import AppUser, BusinessUnit, Organization
 
@@ -63,11 +64,14 @@ def bootstrap(
     org_slug: str = typer.Option(...),
     bu_code: str = typer.Option("BU1"),
     bu_name: str = typer.Option("Business Unit 1"),
-    admin_subject: str = typer.Option(..., help="Keycloak 'sub' claim of the first admin"),
+    admin_subject: str | None = typer.Option(
+        None, help="Keycloak 'sub' of the first admin. Omit to bind on first verified sign-in."
+    ),
     admin_email: str = typer.Option(...),
     admin_name: str = typer.Option("Administrator"),
 ) -> None:
-    asyncio.run(_bootstrap(org_name, org_slug, bu_code, bu_name, admin_subject, admin_email, admin_name))
+    subject = admin_subject or pending_subject_for(admin_email)
+    asyncio.run(_bootstrap(org_name, org_slug, bu_code, bu_name, subject, admin_email, admin_name))
 
 
 if __name__ == "__main__":

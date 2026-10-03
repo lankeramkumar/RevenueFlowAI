@@ -90,3 +90,18 @@ async def test_get_active_dataset_version_requires_matching_organization(db_sess
 
     result = await get_active_dataset_version(db_session, org_b.id, bu_a.id)
     assert result is None
+
+
+async def test_specialist_tools_return_nothing_for_another_organizations_business_unit(db_session):
+    from revenueflowai.agents.tools import ToolScope, get_aging_summary, list_unbilled_shipments
+
+    org_a, bu_a, _user_a, _amount_a = await _make_org_with_dataset(db_session, "TA")
+    org_b, _bu_b, _user_b, _amount_b = await _make_org_with_dataset(db_session, "TB")
+
+    forged = ToolScope(org_b.id, bu_a.id, AS_OF)
+    aging = await get_aging_summary(db_session, forged)
+    unbilled = await list_unbilled_shipments(db_session, forged)
+
+    assert aging["dataset_version_id"] is None
+    assert aging["totals_by_currency_bucket"] == {}
+    assert unbilled["unbilled_shipments"] == []

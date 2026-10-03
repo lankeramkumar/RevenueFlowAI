@@ -60,6 +60,7 @@ async def get_aging_summary(session: AsyncSession, scope: ToolScope) -> dict[str
             cur: {bucket: _money(total) for bucket, total in buckets.items()}
             for cur, buckets in summary.totals_by_currency_bucket.items()
         },
+        "invoices_by_currency_bucket": summary.invoices_by_currency_bucket,
     }
 
 

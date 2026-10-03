@@ -65,6 +65,7 @@ async def run_investigation(
         )
         return FinalInvestigation(
             summary=reason, findings=(), specialist_status=(), evidence=(), recommended_actions=(),
+            dispatches=(), entities=dict(plan.entities),
             missing_data=("unsupported_question_pattern",) if plan.label != "live_provider_error"
             else ("live_provider_unavailable",),
             dataset_version_id=scope.dataset_version_id, as_of_date=as_of_str,
@@ -118,6 +119,7 @@ async def run_investigation(
 
     return FinalInvestigation(
         summary=summary, findings=tuple(all_findings), metrics=tuple(all_metrics),
+        dispatches=tuple(f"{d}:{i}" for d, i in plan.dispatches), entities=dict(plan.entities),
         specialist_status=specialist_status,
         evidence=tuple(all_evidence), recommended_actions=tuple(all_actions),
         missing_data=tuple(all_missing),

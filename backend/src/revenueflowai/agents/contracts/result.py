@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from revenueflowai.agents.contracts.task import SCHEMA_VERSION, Domain
 
@@ -94,6 +94,8 @@ class FinalInvestigation(BaseModel):
     summary: str
     findings: tuple[Finding, ...]
     metrics: tuple[Metric, ...] = ()
+    dispatches: tuple[str, ...] = ()  # "domain:intent" as planned and validated
+    entities: dict[str, str] = Field(default_factory=dict)
     specialist_status: tuple[SpecialistStatusSummary, ...]
     evidence: tuple[EvidenceReference, ...]
     recommended_actions: tuple[ProposedAction, ...]
