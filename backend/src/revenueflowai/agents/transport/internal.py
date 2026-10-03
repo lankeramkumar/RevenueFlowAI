@@ -59,3 +59,5 @@ class InternalAgentTransport(AgentTransport):
             return await asyncio.wait_for(handler(task), timeout=self._timeout_seconds)
         except TimeoutError:
             return _unavailable_result(task, "timeout")
+        except Exception:
+            return _unavailable_result(task, "specialist_error")

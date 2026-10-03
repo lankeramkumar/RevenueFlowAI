@@ -213,3 +213,21 @@ async def test_evidence_drilldown_cross_org_record_is_not_resolvable(db_session)
 
     assert response.status_code == 409
     assert "HTTP-INV-EA" not in response.text
+
+
+async def test_import_job_status_from_another_organization_is_404(db_session):
+    org_a, bu_a, user_a, _ = await _make_org_with_dataset(db_session, "JA")
+    _org_b, _bu_b, user_b, _ = await _make_org_with_dataset(db_session, "JB", role="admin")
+
+    job = (await db_session.execute(
+        select(ImportJob).where(ImportJob.organization_id == org_a.id)
+    )).scalars().first()
+
+    await _override_app(db_session, user_b)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.get(f"/api/v1/imports/{job.id}")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404

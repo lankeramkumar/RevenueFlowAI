@@ -60,6 +60,30 @@ Seeded in the Keycloak realm (`infra/keycloak/revenueflow-realm.json`) — demo-
 | demo-approver | DemoPass123! | Approver |
 | demo-viewer | DemoPass123! | Viewer |
 
+### First tenant in a new deployment
+
+The demo users above already belong to a seeded organization. For a new
+deployment, create the first organization, business unit, and admin with the
+bootstrap command (idempotent; re-running changes nothing). Use the admin's
+Keycloak `sub` claim:
+
+```bash
+cd backend
+python -m revenueflowai.bootstrap --org-name "Acme" --org-slug acme \
+  --admin-subject <keycloak-sub> --admin-email admin@acme.test --admin-name "Admin"
+```
+
+After that, the admin adds other users on the Admin screen.
+
+### API surface (beyond the OpenAPI docs)
+
+- `GET /api/v1/dashboard/aging-summary`, `/unbilled-shipments`, `/order-holds` (per business unit, as-of)
+- `GET /api/v1/customers/{customer_external_id}` — orders, invoices with balances, receipts, disputes, holds, timeline
+- `POST /api/v1/chat/investigate`, `GET /api/v1/chat/{conversation_id}/messages` — cited, persisted investigation with follow-ups
+- `GET /api/v1/evidence/{record_type}/{record_id}` — stored record and linked rows for a citation
+- `POST /api/v1/tasks`, `POST /api/v1/tasks/{id}/transition` — follow-up tasks; approval is audited and has no external side effects
+- `GET/POST/PATCH /api/v1/admin/...` — business units and users (admin only)
+
 ## Running backend/frontend outside Docker (development)
 
 Backend:

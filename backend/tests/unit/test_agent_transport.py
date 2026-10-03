@@ -79,3 +79,25 @@ async def test_duplicate_dispatch_within_same_turn_is_prevented():
     await transport.dispatch(task)
     with pytest.raises(DuplicateDispatchError):
         await transport.dispatch(task)
+
+
+async def test_crashing_specialist_is_reported_as_failed_without_failing_the_others():
+    async def crashing(task):
+        raise RuntimeError("boom")
+
+    async def healthy(task):
+        return SpecialistResult(
+            task_id=task.task_id, domain=task.domain, status="success",
+            dataset_version_id=task.context.dataset_version_id,
+            as_of_date=task.context.business_as_of_date.isoformat(),
+        )
+
+    transport = InternalAgentTransport(handlers={"ar": crashing, "order": healthy})
+    ctx = _context()
+
+    failed = await transport.dispatch(_task(ctx, domain="ar"))
+    ok = await transport.dispatch(_task(_context(), domain="order", intent="unbilled_shipments"))
+
+    assert failed.status == "failed"
+    assert failed.error_code == "specialist_error"
+    assert ok.status == "success"
