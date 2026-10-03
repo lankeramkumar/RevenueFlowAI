@@ -63,7 +63,7 @@ export function DashboardPage() {
       {currencies.length === 0 ? (
         <p>No open invoice balances in the active dataset.</p>
       ) : (
-        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+        <div className="card card--flush"><table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
           <thead>
             <tr style={{ background: "#f1f5f9", textAlign: "left" }}>
               <th style={cell}>Currency</th>
@@ -85,7 +85,7 @@ export function DashboardPage() {
               );
             })}
           </tbody>
-        </table>
+        </table></div>
       )}
     </section>
   );

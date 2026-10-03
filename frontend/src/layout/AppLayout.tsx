@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "react-oidc-context";
-import { Link, Outlet } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import { apiFetch } from "../api/client";
 import { MeContext, type MeResponse } from "../auth/MeContext";
 import { useApi } from "../hooks/useApi";
@@ -53,24 +53,24 @@ export function AppLayout() {
 
   return (
     <MeContext.Provider value={me}>
-      <div style={{ fontFamily: "system-ui" }}>
-        <header style={{ padding: "1rem 2rem", borderBottom: "1px solid #ddd", display: "flex", gap: "1.5rem", alignItems: "center" }}>
-          <strong>RevenueFlow AI</strong>
-          <nav style={{ display: "flex", gap: "1rem" }}>
-            <Link to="/">Dashboard</Link>
-            <Link to="/chat">Investigate</Link>
-            <Link to="/workbench">Exceptions</Link>
-            <Link to="/customers">Customers</Link>
-            <Link to="/tasks">Tasks</Link>
-            {me.role === "admin" && <Link to="/imports">Import</Link>}
-            {me.role === "admin" && <Link to="/admin">Admin</Link>}
+      <div>
+        <header className="app-header">
+          <span className="app-brand">RevenueFlow AI</span>
+          <nav className="app-nav">
+            <NavLink to="/" end>Dashboard</NavLink>
+            <NavLink to="/chat">Investigate</NavLink>
+            <NavLink to="/workbench">Exceptions</NavLink>
+            <NavLink to="/customers">Customers</NavLink>
+            <NavLink to="/tasks">Tasks</NavLink>
+            {me.role === "admin" && <NavLink to="/imports">Import</NavLink>}
+            {me.role === "admin" && <NavLink to="/admin">Admin</NavLink>}
           </nav>
-          <span style={{ marginLeft: "auto" }}>
-            {me.display_name} ({me.role})
+          <span className="app-user">
+            {me.display_name} · {me.role}
           </span>
           <button onClick={() => auth.signoutRedirect()}>Sign out</button>
         </header>
-        <main style={{ padding: "2rem", maxWidth: 960 }}>
+        <main className="app-main">
           <Outlet />
         </main>
       </div>

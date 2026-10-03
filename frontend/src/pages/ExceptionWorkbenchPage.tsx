@@ -197,6 +197,7 @@ export function ExceptionWorkbenchPage() {
   return (
     <section>
       <h2>Exception Workbench</h2>
+      <p className="page-subtitle">Open billing and cash exceptions in the active dataset. Filter and sort each list, and open the evidence behind any row.</p>
 
       <h3>Unbilled Shipments</h3>
       {shipmentsQuery.isLoading && <p>Loading…</p>}
@@ -214,7 +215,7 @@ export function ExceptionWorkbenchPage() {
             }}
             aria-label="Filter unbilled shipments"
           />
-          <table style={tableStyle}>
+          <div className="card card--flush"><table style={tableStyle}>
             <thead>
               <tr style={headerRowStyle}>
                 <SortableHeader<UnbilledShipment>
@@ -291,7 +292,7 @@ export function ExceptionWorkbenchPage() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
           <Pager page={shipmentPage} pageCount={shipmentPageCount} onPageChange={setShipmentPage} />
         </>
       )}
@@ -312,7 +313,7 @@ export function ExceptionWorkbenchPage() {
             }}
             aria-label="Filter order holds"
           />
-          <table style={tableStyle}>
+          <div className="card card--flush"><table style={tableStyle}>
             <thead>
               <tr style={headerRowStyle}>
                 <SortableHeader<OrderHoldRow>
@@ -376,7 +377,7 @@ export function ExceptionWorkbenchPage() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
           <Pager page={holdPage} pageCount={holdPageCount} onPageChange={setHoldPage} />
         </>
       )}

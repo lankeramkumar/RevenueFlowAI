@@ -370,7 +370,10 @@ export function ChatPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 110px)", minHeight: 480, textAlign: "left", fontSize: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <h2 style={{ margin: 0 }}>Investigate</h2>
+        <div>
+          <h2 style={{ margin: 0 }}>Investigate</h2>
+          <p className="page-subtitle" style={{ margin: 0 }}>Every answer cites the stored records behind it. Demo and live modes share the same evidence.</p>
+        </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
           <label>
             Mode{" "}
@@ -393,8 +396,8 @@ export function ChatPage() {
 
       <div
         style={{
-          flex: 1, overflowY: "auto", border: "1px solid #e2e8f0", borderRadius: 10,
-          padding: 16, background: "#f8fafc", display: "flex", flexDirection: "column", gap: 14,
+          flex: 1, overflowY: "auto", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "var(--shadow-card)",
+          padding: 16, background: "var(--surface)", display: "flex", flexDirection: "column", gap: 14,
         }}
       >
         {bubbles.length === 0 && (
