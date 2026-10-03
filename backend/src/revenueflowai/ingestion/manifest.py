@@ -86,6 +86,23 @@ NONNEGATIVE_AMOUNT_COLUMNS: dict[str, list[str]] = {
     "disputes.csv": ["disputed_amount"],
 }
 
+# Every column that must parse as an ISO-8601 date (empty is fine for
+# optional columns; required-ness is governed by REQUIRED_COLUMNS).
+DATE_COLUMNS: dict[str, list[str]] = {
+    "orders.csv": ["order_date", "promised_ship_date"],
+    "shipments.csv": ["shipment_date", "delivery_date"],
+    "invoices.csv": ["invoice_date", "due_date"],
+    "receipts.csv": ["receipt_date"],
+    "receipt_applications.csv": ["application_date"],
+    "credit_applications.csv": ["application_date"],
+    "disputes.csv": ["opened_date", "closed_date"],
+    "order_holds.csv": ["applied_date", "released_date"],
+}
+
+# Money/quantity amounts beyond 4 decimal places exceed this release's
+# NUMERIC(18,4) precision and must be rejected, not silently rounded.
+MAX_DECIMAL_PLACES = 4
+
 CURRENCY_COLUMN: dict[str, str] = {
     "orders.csv": "currency",
     "invoices.csv": "currency",

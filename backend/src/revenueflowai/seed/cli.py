@@ -16,6 +16,7 @@ from pathlib import Path
 
 import typer
 
+from revenueflowai.seed.invalid import generate_invalid_bundles
 from revenueflowai.seed.scenarios import IMPLEMENTED_SCENARIOS
 from revenueflowai.seed.schema import CSV_COLUMNS
 
@@ -44,24 +45,7 @@ def version() -> None:
     typer.echo(GENERATOR_VERSION)
 
 
-@app.command()
-def generate(
-    profile: str = typer.Option(..., help="small|demo|load|invalid"),
-    seed: int = typer.Option(42),
-    as_of: str = typer.Option(..., help="ISO date, e.g. 2026-10-02. Never the machine clock."),
-    output: str = typer.Option(...),
-    total_rows: int = typer.Option(100_000, help="Only used by the load profile."),
-) -> None:
-    if profile != "small":
-        typer.echo(
-            f"Profile '{profile}' is not yet implemented (Foundation milestone ships 'small' only; "
-            "demo/load/invalid land in Milestones 2-3 and 6). See docs/implementation-plan.md.",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-
-    as_of_date = date.fromisoformat(as_of)
-    out_dir = Path(output)
+def _generate_small(seed: int, as_of_date: date, out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     rows_by_file: dict[str, list[dict]] = {name: [] for name in CSV_COLUMNS}
@@ -91,7 +75,7 @@ def generate(
 
     manifest = {
         "generator_version": GENERATOR_VERSION,
-        "profile": profile,
+        "profile": "small",
         "seed": seed,
         "as_of_date": as_of_date.isoformat(),
         "snapshot_date": as_of_date.isoformat(),
@@ -100,16 +84,55 @@ def generate(
         "file_row_counts": file_row_counts,
         "file_sha256": file_hashes,
     }
-    manifest_text = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-    (out_dir / "dataset_manifest.json").write_text(manifest_text)
-
-    scenario_text = json.dumps(scenario_manifest, indent=2, sort_keys=True) + "\n"
-    (out_dir / "scenario_manifest.json").write_text(scenario_text)
+    (out_dir / "dataset_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    (out_dir / "scenario_manifest.json").write_text(
+        json.dumps(scenario_manifest, indent=2, sort_keys=True) + "\n"
+    )
 
     typer.echo(
         f"Wrote {len(CSV_COLUMNS)} CSV files + manifests to {out_dir} "
         f"({len(scenario_manifest)} scenarios)."
     )
+
+
+def _generate_invalid(seed: int, as_of_date: date, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fixture_manifest = generate_invalid_bundles(seed, as_of_date, out_dir)
+
+    manifest = {
+        "generator_version": GENERATOR_VERSION,
+        "profile": "invalid",
+        "seed": seed,
+        "as_of_date": as_of_date.isoformat(),
+        "fixtures": fixture_manifest,
+    }
+    (out_dir / "dataset_manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+
+    typer.echo(f"Wrote {len(fixture_manifest)} invalid fixture bundles to {out_dir}.")
+
+
+@app.command()
+def generate(
+    profile: str = typer.Option(..., help="small|demo|load|invalid"),
+    seed: int = typer.Option(42),
+    as_of: str = typer.Option(..., help="ISO date, e.g. 2026-10-02. Never the machine clock."),
+    output: str = typer.Option(...),
+    total_rows: int = typer.Option(100_000, help="Only used by the load profile."),
+) -> None:
+    as_of_date = date.fromisoformat(as_of)
+    out_dir = Path(output)
+
+    if profile == "small":
+        _generate_small(seed, as_of_date, out_dir)
+    elif profile == "invalid":
+        _generate_invalid(seed, as_of_date, out_dir)
+    else:
+        typer.echo(
+            f"Profile '{profile}' is not yet implemented ('small' and 'invalid' are done; "
+            "'demo' and 'load' are tracked in docs/implementation-plan.md).",
+            err=True,
+        )
+        raise typer.Exit(code=2)
 
 
 if __name__ == "__main__":

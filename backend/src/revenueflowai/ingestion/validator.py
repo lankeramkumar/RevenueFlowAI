@@ -9,12 +9,15 @@ continuation) wraps this with the durable import-job workflow.
 
 import csv
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from revenueflowai.ingestion.manifest import (
     CURRENCY_COLUMN,
+    DATE_COLUMNS,
     FOREIGN_KEYS,
+    MAX_DECIMAL_PLACES,
     NONNEGATIVE_AMOUNT_COLUMNS,
     PRIMARY_KEY,
     REQUIRED_COLUMNS,
@@ -76,10 +79,13 @@ def validate_bundle(bundle_dir: Path) -> ValidationResult:
         _validate_status_vocabulary(filename, rows, result)
         _validate_currency_codes(filename, rows, result)
         _validate_nonnegative_amounts(filename, rows, result)
+        _validate_precision(filename, rows, result)
+        _validate_dates(filename, rows, result)
 
         ids_by_file[filename] = _collect_id_sets(filename, rows)
 
     _validate_foreign_keys(rows_by_file, ids_by_file, result)
+    _validate_application_customer_currency_match(rows_by_file, result)
 
     return result
 
@@ -160,6 +166,91 @@ def _validate_nonnegative_amounts(
                     filename, i, column, "negative_amount",
                     f"'{column}'={value} is negative; negative amounts are unsupported in this release.",
                 )
+
+
+def _validate_precision(filename: str, rows: list[dict[str, str]], result: ValidationResult) -> None:
+    columns = NONNEGATIVE_AMOUNT_COLUMNS.get(filename, [])
+    for i, row in enumerate(rows, start=1):
+        for column in columns:
+            raw = row.get(column, "")
+            if raw == "":
+                continue
+            try:
+                value = Decimal(raw)
+            except InvalidOperation:
+                continue  # already reported by _validate_nonnegative_amounts
+            exponent = value.as_tuple().exponent
+            if isinstance(exponent, int) and -exponent > MAX_DECIMAL_PLACES:
+                result.add(
+                    filename, i, column, "excessive_precision",
+                    f"'{column}'={raw!r} has more than {MAX_DECIMAL_PLACES} decimal places; "
+                    "rounding would silently change the amount, so this is rejected instead.",
+                )
+
+
+def _validate_dates(filename: str, rows: list[dict[str, str]], result: ValidationResult) -> None:
+    columns = DATE_COLUMNS.get(filename, [])
+    for i, row in enumerate(rows, start=1):
+        for column in columns:
+            raw = row.get(column, "")
+            if raw == "":
+                continue
+            try:
+                date.fromisoformat(raw)
+            except ValueError:
+                result.add(
+                    filename, i, column, "invalid_date",
+                    f"'{column}'={raw!r} is not a valid ISO-8601 date (YYYY-MM-DD).",
+                )
+
+
+def _validate_application_customer_currency_match(
+    rows_by_file: dict[str, list[dict[str, str]]], result: ValidationResult
+) -> None:
+    """intent.md: "Payment and credit applications must connect records for
+    the same customer and currency." Checked here, not just left to the
+    domain layer, because it's a data-quality defect the uploader should
+    see before activation, not a runtime matching nuance.
+    """
+    invoices = {
+        row["invoice_id"]: (row.get("customer_id", ""), row.get("currency", ""))
+        for row in rows_by_file.get("invoices.csv", [])
+        if row.get("invoice_id")
+    }
+
+    receipts = {
+        row["receipt_id"]: (row.get("customer_id", ""), row.get("currency", ""))
+        for row in rows_by_file.get("receipts.csv", [])
+        if row.get("receipt_id")
+    }
+    for i, row in enumerate(rows_by_file.get("receipt_applications.csv", []), start=1):
+        receipt = receipts.get(row.get("receipt_id", ""))
+        invoice = invoices.get(row.get("invoice_id", ""))
+        if receipt is None or invoice is None:
+            continue  # already reported by the foreign-key check
+        if receipt != invoice:
+            result.add(
+                "receipt_applications.csv", i, "invoice_id", "mismatched_application_currency",
+                f"Receipt {row.get('receipt_id')!r} (customer/currency {receipt}) applied to invoice "
+                f"{row.get('invoice_id')!r} (customer/currency {invoice}) — must match.",
+            )
+
+    credit_memos = {
+        row["credit_memo_id"]: (row.get("customer_id", ""), row.get("currency", ""))
+        for row in rows_by_file.get("credit_memos.csv", [])
+        if row.get("credit_memo_id")
+    }
+    for i, row in enumerate(rows_by_file.get("credit_applications.csv", []), start=1):
+        memo = credit_memos.get(row.get("credit_memo_id", ""))
+        invoice = invoices.get(row.get("invoice_id", ""))
+        if memo is None or invoice is None:
+            continue
+        if memo != invoice:
+            result.add(
+                "credit_applications.csv", i, "invoice_id", "mismatched_application_currency",
+                f"Credit memo {row.get('credit_memo_id')!r} (customer/currency {memo}) applied to invoice "
+                f"{row.get('invoice_id')!r} (customer/currency {invoice}) — must match.",
+            )
 
 
 def _validate_foreign_keys(

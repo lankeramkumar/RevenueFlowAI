@@ -125,3 +125,33 @@ def test_negative_amount_is_reported(tmp_path):
     result = validate_bundle(bundle_dir)
 
     assert any(e.code == "negative_amount" and e.file == "invoices.csv" for e in result.errors)
+
+
+def test_excessive_precision_is_reported(tmp_path):
+    bundle_dir = tmp_path / "bundle"
+    _write_empty_bundle(bundle_dir)
+    _append_row(bundle_dir, "customers.csv", {"customer_id": "CUST-1", "customer_name": "Alpha Co"})
+    _append_row(bundle_dir, "invoices.csv", {
+        "invoice_id": "INV-1", "customer_id": "CUST-1",
+        "invoice_date": "2026-01-01", "due_date": "2026-02-01",
+        "currency": "USD", "invoice_amount": "100.123456", "status": "posted",
+    })
+
+    result = validate_bundle(bundle_dir)
+
+    assert any(e.code == "excessive_precision" and e.file == "invoices.csv" for e in result.errors)
+
+
+def test_invalid_date_is_reported(tmp_path):
+    bundle_dir = tmp_path / "bundle"
+    _write_empty_bundle(bundle_dir)
+    _append_row(bundle_dir, "customers.csv", {"customer_id": "CUST-1", "customer_name": "Alpha Co"})
+    _append_row(bundle_dir, "invoices.csv", {
+        "invoice_id": "INV-1", "customer_id": "CUST-1",
+        "invoice_date": "01/01/2026", "due_date": "2026-02-01",
+        "currency": "USD", "invoice_amount": "100.00", "status": "posted",
+    })
+
+    result = validate_bundle(bundle_dir)
+
+    assert any(e.code == "invalid_date" and e.file == "invoices.csv" for e in result.errors)
